@@ -11,6 +11,7 @@
 #include <vector>
 #include <cstdio>
 #include <cstdarg>
+#include <mutex>
 
 namespace cpp_logger {
 
@@ -38,7 +39,8 @@ public:
 
     template<typename... Args>
     Logger& log(Verbosity level, const char* file, int line, const char* format, Args... args) {
-        if (level >= LogLevel) { //mutex here?
+        std::lock_guard<std::mutex> lock(_mutex); //added mutex for thread safety
+        if (level >= LogLevel) {
             std::ostringstream oss;
             oss << getCurrentTime() << " [" << getVerbosityString(level) << "] "
                 << getFileName(file) << ":" << line << " "
@@ -57,6 +59,7 @@ private:
     std::string _filename;
     std::ofstream _logfile;
     std::size_t _current_size;
+    std::mutex _mutex;
 
     void rotateLogFile() {
         if (_logfile.is_open()) {
