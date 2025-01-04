@@ -38,7 +38,7 @@ public:
 
     template<typename... Args>
     Logger& log(Verbosity level, const char* file, int line, const char* format, Args... args) {
-        if (level >= LogLevel) {
+        if (level >= LogLevel) { //mutex here?
             std::ostringstream oss;
             oss << getCurrentTime() << " [" << getVerbosityString(level) << "] "
                 << getFileName(file) << ":" << line << " "

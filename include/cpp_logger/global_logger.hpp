@@ -8,6 +8,9 @@
 
 namespace cpp_logger {
 
+constexpr size_t DEFAULT_BUFFER_SIZE = 1024;
+constexpr cpp_logger::Verbosity DEFAULT_VERBOSITY = cpp_logger::Verbosity::DEBUG;
+
 inline std::string& getLogFileName() {
     static std::string logFileName = "global_logfile.log";
     return logFileName;
@@ -17,17 +20,17 @@ inline void setLogFileName(const std::string& filename) {
     getLogFileName() = filename;
 }
 
-inline std::shared_ptr<Logger<1024, cpp_logger::Verbosity::DEBUG>>& getGlobalLogger(const std::string& filename = "") {
-    static std::shared_ptr<Logger<1024, cpp_logger::Verbosity::DEBUG>> instance;
+inline std::shared_ptr<Logger<DEFAULT_BUFFER_SIZE, DEFAULT_VERBOSITY>>& getGlobalLogger(const std::string& filename = "") {
+    static std::shared_ptr<Logger<DEFAULT_BUFFER_SIZE, DEFAULT_VERBOSITY>> instance;
     static std::mutex mtx;
 
     std::lock_guard<std::mutex> lock(mtx);
     if (!filename.empty() && getLogFileName() != filename) {
         setLogFileName(filename);
         instance.reset();
-        instance = std::make_shared<Logger<1024, cpp_logger::Verbosity::DEBUG>>(getLogFileName());
+        instance = std::make_shared<Logger<DEFAULT_BUFFER_SIZE, DEFAULT_VERBOSITY>>(getLogFileName());
     } else if (!instance) {
-        instance = std::make_shared<Logger<1024, cpp_logger::Verbosity::DEBUG>>(getLogFileName());
+        instance = std::make_shared<Logger<DEFAULT_BUFFER_SIZE, DEFAULT_VERBOSITY>>(getLogFileName());
     }
 
     return instance;
