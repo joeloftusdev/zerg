@@ -32,6 +32,11 @@ target_include_directories(gtests PRIVATE
 
 target_compile_options(gtests PRIVATE -mavx -msse4.2)
 
+if(SANITIZER_FLAGS)
+    target_compile_options(gtests PRIVATE ${SANITIZER_FLAGS})
+    target_link_options(gtests PRIVATE ${SANITIZER_FLAGS})
+endif()
+
 target_link_libraries(gtests PRIVATE
     cpp_logger
     gtest
