@@ -47,17 +47,17 @@ inline void setGlobalLoggerVerbosity(Verbosity level) {
 
 inline Verbosity stringToVerbosity(const std::string& level) {
     static const std::unordered_map<std::string, Verbosity> verbosityMap = {
-        {"DEBUG", Verbosity::DEBUG},
-        {"INFO", Verbosity::INFO},
-        {"WARN", Verbosity::WARN},
-        {"ERROR", Verbosity::ERROR},
-        {"FATAL", Verbosity::FATAL}
+        {"DEBUG", Verbosity::DEBUG_LVL},
+        {"INFO", Verbosity::INFO_LVL},
+        {"WARN", Verbosity::WARN_LVL},
+        {"ERROR", Verbosity::ERROR_LVL},
+        {"FATAL", Verbosity::FATAL_LVL}
     };
     auto it = verbosityMap.find(level);
     if (it != verbosityMap.end()) {
         return it->second;
     }
-    return Verbosity::DEBUG; // Default verbosity
+    return Verbosity::DEBUG_LVL; // Default verbosity
 }
 
 inline void loadConfiguration(const std::string& configFile) {

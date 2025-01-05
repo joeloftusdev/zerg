@@ -13,8 +13,8 @@ TEST(GlobalLoggerTest, LogWithDifferentFiles) {
 
     cpp_logger::getGlobalLogger(default_filename);
 
-    cpp_log(cpp_logger::Verbosity::INFO, "Test message with default file");
-    cpp_log_with_file(cpp_logger::Verbosity::DEBUG, custom_filename, "Test message with custom file");
+    cpp_log(cpp_logger::Verbosity::INFO_LVL, "Test message with default file");
+    cpp_log_with_file(cpp_logger::Verbosity::DEBUG_LVL, custom_filename, "Test message with custom file");
 
     std::string log_content_default = readFile(default_filename);
     std::string log_content_custom = readFile(custom_filename);
@@ -33,7 +33,7 @@ TEST(GlobalLoggerTest, LogWithDefaultFile) {
     ofs.close();
 
     cpp_logger::getGlobalLogger(default_filename);
-    cpp_log(cpp_logger::Verbosity::INFO, "Test message with default file");
+    cpp_log(cpp_logger::Verbosity::INFO_LVL, "Test message with default file");
 
     std::string log_content = readFile(default_filename);
     EXPECT_NE(log_content.find("Test message with default file"), std::string::npos);
@@ -46,7 +46,7 @@ TEST(GlobalLoggerTest, LogWithCustomFile) {
     std::ofstream ofs(custom_filename, std::ofstream::out | std::ofstream::trunc);
     ofs.close();
 
-    cpp_log_with_file(cpp_logger::Verbosity::INFO, custom_filename, "Test message with custom file");
+    cpp_log_with_file(cpp_logger::Verbosity::INFO_LVL, custom_filename, "Test message with custom file");
 
     std::string log_content = readFile(custom_filename);
     EXPECT_NE(log_content.find("Test message with custom file"), std::string::npos);

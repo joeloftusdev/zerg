@@ -16,17 +16,17 @@
 namespace cpp_logger {
 
 enum class Verbosity {
-    DEBUG,
-    INFO,
-    WARN,
-    ERROR,
-    FATAL
+    DEBUG_LVL,
+    INFO_LVL,
+    WARN_LVL,
+    ERROR_LVL,
+    FATAL_LVL
 };
 
 template<std::size_t MaxFileSize>
 class Logger {
 public:
-    explicit Logger(const std::string& filename, Verbosity logLevel = Verbosity::DEBUG)
+    explicit Logger(const std::string& filename, Verbosity logLevel = Verbosity::DEBUG_LVL)
         : _filename(filename), _current_size(0), _log_level(logLevel) {
         rotateLogFile();
     }
@@ -85,11 +85,11 @@ private:
 
     std::string getVerbosityString(Verbosity level) const {
         switch (level) {
-            case Verbosity::DEBUG: return "DEBUG";
-            case Verbosity::INFO: return "INFO";
-            case Verbosity::WARN: return "WARN";
-            case Verbosity::ERROR: return "ERROR";
-            case Verbosity::FATAL: return "FATAL";
+            case Verbosity::DEBUG_LVL: return "DEBUG";
+            case Verbosity::INFO_LVL: return "INFO";
+            case Verbosity::WARN_LVL: return "WARN";
+            case Verbosity::ERROR_LVL: return "ERROR";
+            case Verbosity::FATAL_LVL: return "FATAL";
             default: return "UNKNOWN";
         }
     }

@@ -7,9 +7,9 @@
 
 TEST(LoggerTest, LogSingleMessage) {
     const std::string filename = "test_log.log";
-    cpp_logger::Logger<1024> logger(filename, cpp_logger::Verbosity::DEBUG);
+    cpp_logger::Logger<1024> logger(filename, cpp_logger::Verbosity::DEBUG_LVL);
 
-    LOG_TEST(logger, cpp_logger::Verbosity::DEBUG, "Test message");
+    LOG_TEST(logger, cpp_logger::Verbosity::DEBUG_LVL, "Test message");
 
     std::string log_content = readFile(filename);
     EXPECT_NE(log_content.find("Test message"), std::string::npos);
@@ -18,10 +18,10 @@ TEST(LoggerTest, LogSingleMessage) {
 
 TEST(LoggerTest, LogMultipleMessages) {
     const std::string filename = "test_log.log";
-    cpp_logger::Logger<1024> logger(filename, cpp_logger::Verbosity::DEBUG);
+    cpp_logger::Logger<1024> logger(filename, cpp_logger::Verbosity::DEBUG_LVL);
 
-    LOG_TEST(logger, cpp_logger::Verbosity::DEBUG, "First message");
-    LOG_TEST(logger, cpp_logger::Verbosity::DEBUG, "Second message");
+    LOG_TEST(logger, cpp_logger::Verbosity::DEBUG_LVL, "First message");
+    LOG_TEST(logger, cpp_logger::Verbosity::DEBUG_LVL, "Second message");
 
     std::string log_content = readFile(filename);
     EXPECT_NE(log_content.find("First message"), std::string::npos);
@@ -31,11 +31,11 @@ TEST(LoggerTest, LogMultipleMessages) {
 
 TEST(LoggerTest, RotateLogFile) {
     const std::string filename = "test_log.log";
-    cpp_logger::Logger<50> logger(filename, cpp_logger::Verbosity::DEBUG); // small max file size to trigger rotation
+    cpp_logger::Logger<50> logger(filename, cpp_logger::Verbosity::DEBUG_LVL); // small max file size to trigger rotation
 
-    LOG_TEST(logger, cpp_logger::Verbosity::DEBUG, "Message 1");
-    LOG_TEST(logger, cpp_logger::Verbosity::DEBUG, "Message 2");
-    LOG_TEST(logger, cpp_logger::Verbosity::DEBUG, "Message 3");
+    LOG_TEST(logger, cpp_logger::Verbosity::DEBUG_LVL, "Message 1");
+    LOG_TEST(logger, cpp_logger::Verbosity::DEBUG_LVL, "Message 2");
+    LOG_TEST(logger, cpp_logger::Verbosity::DEBUG_LVL, "Message 3");
 
     std::string log_content = readFile(filename);
     EXPECT_NE(log_content.find("Message 1"), std::string::npos);
@@ -45,12 +45,12 @@ TEST(LoggerTest, RotateLogFile) {
 
 TEST(LoggerTest, LogWithDifferentVerbosityLevels) {
     const std::string filename = "test_log.log";
-    cpp_logger::Logger<1024> logger(filename, cpp_logger::Verbosity::WARN);
+    cpp_logger::Logger<1024> logger(filename, cpp_logger::Verbosity::WARN_LVL);
 
-    LOG_TEST(logger, cpp_logger::Verbosity::DEBUG, "Debug message");
-    LOG_TEST(logger, cpp_logger::Verbosity::INFO, "Info message");
-    LOG_TEST(logger, cpp_logger::Verbosity::WARN, "Warning message");
-    LOG_TEST(logger, cpp_logger::Verbosity::ERROR, "Error message");
+    LOG_TEST(logger, cpp_logger::Verbosity::DEBUG_LVL, "Debug message");
+    LOG_TEST(logger, cpp_logger::Verbosity::INFO_LVL, "Info message");
+    LOG_TEST(logger, cpp_logger::Verbosity::WARN_LVL, "Warning message");
+    LOG_TEST(logger, cpp_logger::Verbosity::ERROR_LVL, "Error message");
 
     std::string log_content = readFile(filename);
     EXPECT_EQ(log_content.find("Debug message"), std::string::npos);
@@ -62,13 +62,13 @@ TEST(LoggerTest, LogWithDifferentVerbosityLevels) {
 
 TEST(LoggerTest, LogFormattedMessages) {
     const std::string filename = "test_log.log";
-    cpp_logger::Logger<1024> logger(filename, cpp_logger::Verbosity::DEBUG);
+    cpp_logger::Logger<1024> logger(filename, cpp_logger::Verbosity::DEBUG_LVL);
 
-    LOG_TEST(logger, cpp_logger::Verbosity::DEBUG, "Debug %.1f message", 1.0);
-    LOG_TEST(logger, cpp_logger::Verbosity::INFO, "Info %d message", 2);
-    LOG_TEST(logger, cpp_logger::Verbosity::WARN, "Warning %s message", "test");
-    LOG_TEST(logger, cpp_logger::Verbosity::ERROR, "Error %c message", 'E');
-    LOG_TEST(logger, cpp_logger::Verbosity::FATAL, "Fatal %s message with number %d", "fatal", 5);
+    LOG_TEST(logger, cpp_logger::Verbosity::DEBUG_LVL, "Debug %.1f message", 1.0);
+    LOG_TEST(logger, cpp_logger::Verbosity::INFO_LVL, "Info %d message", 2);
+    LOG_TEST(logger, cpp_logger::Verbosity::WARN_LVL, "Warning %s message", "test");
+    LOG_TEST(logger, cpp_logger::Verbosity::ERROR_LVL, "Error %c message", 'E');
+    LOG_TEST(logger, cpp_logger::Verbosity::FATAL_LVL, "Fatal %s message with number %d", "fatal", 5);
 
     std::string log_content = readFile(filename);
     EXPECT_NE(log_content.find("Debug 1.0 message"), std::string::npos);
