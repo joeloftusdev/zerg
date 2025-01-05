@@ -1,1 +1,1 @@
-verbosity=INFO_LVL
+verbosity=INFO

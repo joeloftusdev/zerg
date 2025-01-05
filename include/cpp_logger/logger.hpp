@@ -28,7 +28,7 @@ class Logger {
 public:
     explicit Logger(const std::string& filename, Verbosity logLevel = Verbosity::DEBUG_LVL)
         : _filename(filename), _current_size(0), _log_level(logLevel) {
-        rotateLogFile();
+        openLogFile();
     }
 
     ~Logger() {
@@ -67,11 +67,16 @@ private:
     Verbosity _log_level;
     std::mutex _mutex;
 
+    void openLogFile() {
+        _logfile.open(_filename, std::ios::out | std::ios::app);
+        _current_size = _logfile.tellp();
+    }
+
     void rotateLogFile() {
         if (_logfile.is_open()) {
             _logfile.close();
         }
-        _logfile.open(_filename, std::ios::out | std::ios::app);
+        _logfile.open(_filename, std::ios::out | std::ios::trunc); // Truncate the file
         _current_size = 0;
     }
 
