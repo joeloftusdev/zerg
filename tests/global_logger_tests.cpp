@@ -4,7 +4,7 @@
 #include <string>
 
 TEST(GlobalLoggerTest, LogWithDefaultFile) {
-    const std::string default_filename = "test_global_logfile.log";
+    const std::string default_filename = "global_logfile.log";
 
     std::ofstream ofs(default_filename, std::ofstream::out | std::ofstream::trunc);
     ofs.close();
