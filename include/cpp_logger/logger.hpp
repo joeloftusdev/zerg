@@ -23,11 +23,11 @@ enum class Verbosity {
     FATAL
 };
 
-template<std::size_t MaxFileSize, Verbosity LogLevel>
+template<std::size_t MaxFileSize>
 class Logger {
 public:
-    explicit Logger(const std::string& filename)
-        : _filename(filename), _current_size(0) {
+    explicit Logger(const std::string& filename, Verbosity logLevel = Verbosity::DEBUG)
+        : _filename(filename), _current_size(0), _log_level(logLevel) {
         rotateLogFile();
     }
 
@@ -37,10 +37,15 @@ public:
         }
     }
 
+    void setLogLevel(Verbosity level) {
+        std::lock_guard<std::mutex> lock(_mutex);
+        _log_level = level;
+    }
+
     template<typename... Args>
     Logger& log(Verbosity level, const char* file, int line, const char* format, Args... args) {
-        std::lock_guard<std::mutex> lock(_mutex); //added mutex for thread safety
-        if (level >= LogLevel) {
+        std::lock_guard<std::mutex> lock(_mutex); // added mutex for thread safety
+        if (level >= _log_level) {
             std::ostringstream oss;
             oss << getCurrentTime() << " [" << getVerbosityString(level) << "] "
                 << getFileName(file) << ":" << line << " "
@@ -59,6 +64,7 @@ private:
     std::string _filename;
     std::ofstream _logfile;
     std::size_t _current_size;
+    Verbosity _log_level;
     std::mutex _mutex;
 
     void rotateLogFile() {

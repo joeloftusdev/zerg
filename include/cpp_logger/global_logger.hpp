@@ -5,11 +5,13 @@
 #include <string>
 #include <memory>
 #include <mutex>
+#include <fstream>
+#include <sstream>
+#include <unordered_map>
 
 namespace cpp_logger {
 
 constexpr size_t DEFAULT_BUFFER_SIZE = 1024;
-constexpr cpp_logger::Verbosity DEFAULT_VERBOSITY = cpp_logger::Verbosity::DEBUG;
 
 inline std::string& getLogFileName() {
     static std::string logFileName = "global_logfile.log";
@@ -20,20 +22,60 @@ inline void setLogFileName(const std::string& filename) {
     getLogFileName() = filename;
 }
 
-inline std::shared_ptr<Logger<DEFAULT_BUFFER_SIZE, DEFAULT_VERBOSITY>>& getGlobalLogger(const std::string& filename = "") {
-    static std::shared_ptr<Logger<DEFAULT_BUFFER_SIZE, DEFAULT_VERBOSITY>> instance;
+inline std::shared_ptr<Logger<DEFAULT_BUFFER_SIZE>>& getGlobalLogger(const std::string& filename = "") {
+    static std::unordered_map<std::string, std::shared_ptr<Logger<DEFAULT_BUFFER_SIZE>>> instances;
     static std::mutex mtx;
 
     std::lock_guard<std::mutex> lock(mtx);
-    if (!filename.empty() && getLogFileName() != filename) {
-        setLogFileName(filename);
-        instance.reset();
-        instance = std::make_shared<Logger<DEFAULT_BUFFER_SIZE, DEFAULT_VERBOSITY>>(getLogFileName());
-    } else if (!instance) {
-        instance = std::make_shared<Logger<DEFAULT_BUFFER_SIZE, DEFAULT_VERBOSITY>>(getLogFileName());
+    if (!filename.empty()) {
+        if (instances.find(filename) == instances.end()) {
+            instances[filename] = std::make_shared<Logger<DEFAULT_BUFFER_SIZE>>(filename);
+        }
+        return instances[filename];
+    } else {
+        std::string defaultFilename = getLogFileName();
+        if (instances.find(defaultFilename) == instances.end()) {
+            instances[defaultFilename] = std::make_shared<Logger<DEFAULT_BUFFER_SIZE>>(defaultFilename);
+        }
+        return instances[defaultFilename];
+    }
+}
+
+inline void setGlobalLoggerVerbosity(Verbosity level) {
+    getGlobalLogger()->setLogLevel(level);
+}
+
+inline Verbosity stringToVerbosity(const std::string& level) {
+    static const std::unordered_map<std::string, Verbosity> verbosityMap = {
+        {"DEBUG", Verbosity::DEBUG},
+        {"INFO", Verbosity::INFO},
+        {"WARN", Verbosity::WARN},
+        {"ERROR", Verbosity::ERROR},
+        {"FATAL", Verbosity::FATAL}
+    };
+    auto it = verbosityMap.find(level);
+    if (it != verbosityMap.end()) {
+        return it->second;
+    }
+    return Verbosity::DEBUG; // Default verbosity
+}
+
+inline void loadConfiguration(const std::string& configFile) {
+    std::ifstream file(configFile);
+    if (!file.is_open()) {
+        throw std::runtime_error("Could not open configuration file");
     }
 
-    return instance;
+    std::string line;
+    while (std::getline(file, line)) {
+        std::istringstream iss(line);
+        std::string key, value;
+        if (std::getline(iss, key, '=') && std::getline(iss, value)) {
+            if (key == "verbosity") {
+                setGlobalLoggerVerbosity(stringToVerbosity(value));
+            }
+        }
+    }
 }
 
 } // namespace cpp_logger

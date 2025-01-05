@@ -7,7 +7,7 @@
 
 TEST(LoggerTest, LogSingleMessage) {
     const std::string filename = "test_log.log";
-    cpp_logger::Logger<1024, cpp_logger::Verbosity::DEBUG> logger(filename);
+    cpp_logger::Logger<1024> logger(filename, cpp_logger::Verbosity::DEBUG);
 
     LOG_TEST(logger, cpp_logger::Verbosity::DEBUG, "Test message");
 
@@ -18,7 +18,7 @@ TEST(LoggerTest, LogSingleMessage) {
 
 TEST(LoggerTest, LogMultipleMessages) {
     const std::string filename = "test_log.log";
-    cpp_logger::Logger<1024, cpp_logger::Verbosity::DEBUG> logger(filename);
+    cpp_logger::Logger<1024> logger(filename, cpp_logger::Verbosity::DEBUG);
 
     LOG_TEST(logger, cpp_logger::Verbosity::DEBUG, "First message");
     LOG_TEST(logger, cpp_logger::Verbosity::DEBUG, "Second message");
@@ -31,7 +31,7 @@ TEST(LoggerTest, LogMultipleMessages) {
 
 TEST(LoggerTest, RotateLogFile) {
     const std::string filename = "test_log.log";
-    cpp_logger::Logger<50, cpp_logger::Verbosity::DEBUG> logger(filename); // small max file size to trigger rotation
+    cpp_logger::Logger<50> logger(filename, cpp_logger::Verbosity::DEBUG); // small max file size to trigger rotation
 
     LOG_TEST(logger, cpp_logger::Verbosity::DEBUG, "Message 1");
     LOG_TEST(logger, cpp_logger::Verbosity::DEBUG, "Message 2");
@@ -45,7 +45,7 @@ TEST(LoggerTest, RotateLogFile) {
 
 TEST(LoggerTest, LogWithDifferentVerbosityLevels) {
     const std::string filename = "test_log.log";
-    cpp_logger::Logger<1024, cpp_logger::Verbosity::WARN> logger(filename);
+    cpp_logger::Logger<1024> logger(filename, cpp_logger::Verbosity::WARN);
 
     LOG_TEST(logger, cpp_logger::Verbosity::DEBUG, "Debug message");
     LOG_TEST(logger, cpp_logger::Verbosity::INFO, "Info message");
@@ -62,7 +62,7 @@ TEST(LoggerTest, LogWithDifferentVerbosityLevels) {
 
 TEST(LoggerTest, LogFormattedMessages) {
     const std::string filename = "test_log.log";
-    cpp_logger::Logger<1024, cpp_logger::Verbosity::DEBUG> logger(filename);
+    cpp_logger::Logger<1024> logger(filename, cpp_logger::Verbosity::DEBUG);
 
     LOG_TEST(logger, cpp_logger::Verbosity::DEBUG, "Debug %.1f message", 1.0);
     LOG_TEST(logger, cpp_logger::Verbosity::INFO, "Info %d message", 2);
