@@ -11,7 +11,7 @@
 
 namespace cpp_logger {
 
-constexpr size_t DEFAULT_BUFFER_SIZE = 1024;
+constexpr size_t DEFAULT_BUFFER_SIZE = 1024 * 1024;
 
 inline std::string& getLogFileName() {
     static std::string logFileName = "global_logfile.log";
