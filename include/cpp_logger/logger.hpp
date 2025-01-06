@@ -12,6 +12,7 @@
 #include <cstdio>
 #include <cstdarg>
 #include <mutex>
+#include <algorithm>
 
 namespace cpp_logger {
 
@@ -51,6 +52,7 @@ public:
                 << getFileName(file) << ":" << line << " "
                 << formatString(format, args...);
             std::string log_entry = oss.str();
+            sanitizeString(log_entry);
             if (_current_size + log_entry.size() > MaxFileSize) {
                 rotateLogFile();
             }
@@ -117,7 +119,14 @@ private:
     #pragma GCC diagnostic pop
         return std::string(buf.data(), buf.size() - 1); 
     }
+
+    void sanitizeString(std::string& str) {
+        str.erase(std::remove_if(str.begin(), str.end(), [](unsigned char c) {
+            return !std::isprint(c);
+        }), str.end());
+    }
 };
+
 
 } // namespace cpp_logger
 

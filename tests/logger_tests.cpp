@@ -73,3 +73,16 @@ TEST(LoggerTest, LogFormattedMessages) {
     EXPECT_NE(log_content.find("Error E message"), std::string::npos);
     EXPECT_NE(log_content.find("Fatal fatal message with number 5"), std::string::npos);
 }
+
+TEST(LoggerTest, SanitizeNonPrintableCharacters) {
+    const std::string filename = "test_log.log";
+    cpp_logger::Logger<1024> logger(filename, cpp_logger::Verbosity::DEBUG_LVL);
+
+    LOG_TEST(logger, cpp_logger::Verbosity::DEBUG_LVL, "Test message with non-printable \x01\x02\x03 characters");
+
+    std::string log_content = readFile(filename);
+    EXPECT_NE(log_content.find("Test message with non-printable  characters"), std::string::npos);
+    EXPECT_EQ(log_content.find("\x01"), std::string::npos);
+    EXPECT_EQ(log_content.find("\x02"), std::string::npos);
+    EXPECT_EQ(log_content.find("\x03"), std::string::npos);
+}
