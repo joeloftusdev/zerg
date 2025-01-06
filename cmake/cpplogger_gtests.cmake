@@ -21,23 +21,23 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(googletest)
 
-add_executable(gtests ${TestFiles})
+add_executable(cpplogger_gtests ${TestFiles})
 
-target_compile_features(gtests PRIVATE cxx_std_20)
+target_compile_features(cpplogger_gtests PRIVATE cxx_std_20)
 
-target_include_directories(gtests PRIVATE
+target_include_directories(cpplogger_gtests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
-target_compile_options(gtests PRIVATE -mavx -msse4.2)
+#target_compile_options(cpplogger_gtests PRIVATE -mavx -msse4.2)
 
 if(SANITIZER_FLAGS)
-    target_compile_options(gtests PRIVATE ${SANITIZER_FLAGS})
-    target_link_options(gtests PRIVATE ${SANITIZER_FLAGS})
+    target_compile_options(cpplogger_gtests PRIVATE ${SANITIZER_FLAGS})
+    target_link_options(cpplogger_gtests PRIVATE ${SANITIZER_FLAGS})
 endif()
 
-target_link_libraries(gtests PRIVATE
+target_link_libraries(cpplogger_gtests PRIVATE
     cpp_logger
     gtest
     gtest_main
@@ -46,4 +46,4 @@ target_link_libraries(gtests PRIVATE
 )
 
 include(GoogleTest)
-gtest_discover_tests(gtests)
+gtest_discover_tests(cpplogger_gtests)

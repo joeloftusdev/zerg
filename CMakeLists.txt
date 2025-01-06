@@ -29,4 +29,4 @@ if(SANITIZER_FLAGS)
     target_link_options(main PRIVATE ${SANITIZER_FLAGS})
 endif()
 
-include(gtests)
+include(cpplogger_gtests)
