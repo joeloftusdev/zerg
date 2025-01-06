@@ -63,6 +63,7 @@ public:
             rotateLogFile();
         }
         _logfile << log_entry << std::endl;
+        _logfile.flush(); //flush to ensure that the log is written to the file
         _current_size += log_entry.size();
     }
     return *this;
@@ -91,8 +92,10 @@ private:
     std::string getCurrentTime() const {
         auto now = std::chrono::system_clock::now();
         auto in_time_t = std::chrono::system_clock::to_time_t(now);
+        std::tm buf;
+        localtime_r(&in_time_t, &buf); // Use thread-safe localtime_r
         std::ostringstream ss;
-        ss << std::put_time(std::localtime(&in_time_t), "%Y-%m-%d %X");
+        ss << std::put_time(&buf, "%Y-%m-%d %X");
         return ss.str();
     }
 
@@ -111,20 +114,6 @@ private:
         size_t pos = path.find_last_of("/\\");
         return (pos == std::string::npos) ? path : path.substr(pos + 1);
     }
-
-    // template<typename... Args> //this is not type safe use fmtlib?
-    // std::string formatString(const char* format, Args... args) const {
-    // #pragma GCC diagnostic push
-    // #pragma GCC diagnostic ignored "-Wformat-security"
-    //     int size = std::snprintf(nullptr, 0, format, args...) + 1; 
-    //     if (size <= 0) {
-    //         throw std::runtime_error("Error during formatting.");
-    //     }
-    //     std::vector<char> buf(size);
-    //     std::snprintf(buf.data(), size, format, args...);
-    // #pragma GCC diagnostic pop
-    //     return std::string(buf.data(), buf.size() - 1); 
-    // }
 
     void sanitizeString(std::string& str) {
         str.erase(std::remove_if(str.begin(), str.end(), [](unsigned char c) {
