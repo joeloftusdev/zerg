@@ -1,18 +1,17 @@
 #ifndef LOGGER_HPP
 #define LOGGER_HPP
 
-#include <iostream>
-#include <fstream>
-#include <string>
-#include <chrono>
-#include <ctime>
-#include <iomanip>
-#include <sstream>
-#include <vector>
-#include <cstdio>
-#include <cstdarg>
-#include <mutex>
-#include <algorithm>
+#include <iostream>     // std::ostream
+#include <fstream>      // std::ofstream
+#include <string>       // std::string
+#include <chrono>       // std::chrono::system_clock
+#include <ctime>        // std::localtime, std::time_t
+#include <iomanip>      // std::put_time
+#include <mutex>        // std::mutex, std::lock_guard
+#include <algorithm>    // std::remove_if
+#include <fmt/core.h>   // fmt::format
+#include <fmt/ostream.h>// fmt::runtime
+
 
 namespace cpp_logger {
 
@@ -44,23 +43,30 @@ public:
     }
 
     template<typename... Args>
-    Logger& log(Verbosity level, const char* file, int line, const char* format, Args... args) {
-        std::lock_guard<std::mutex> lock(_mutex); // added mutex for thread safety
+    Logger& log(Verbosity level, const char* file, int line, const char* format, Args&&... args) {
+        std::lock_guard<std::mutex> lock(_mutex); 
         if (level >= _log_level) {
             std::ostringstream oss;
             oss << getCurrentTime() << " [" << getVerbosityString(level) << "] "
-                << getFileName(file) << ":" << line << " "
-                << formatString(format, args...);
-            std::string log_entry = oss.str();
-            sanitizeString(log_entry);
-            if (_current_size + log_entry.size() > MaxFileSize) {
-                rotateLogFile();
-            }
-            _logfile << log_entry << std::endl;
-            _current_size += log_entry.size();
+                << getFileName(file) << ":" << line << " ";
+
+        // type safe format of the string using fmt::format
+        try {
+            oss << fmt::format(fmt::runtime(format), std::forward<Args>(args)...);
+        } catch (const fmt::format_error& e) {
+            oss << "[FORMAT ERROR: " << e.what() << "]";
         }
-        return *this;
+
+        std::string log_entry = oss.str();
+        sanitizeString(log_entry);
+        if (_current_size + log_entry.size() > MaxFileSize) {
+            rotateLogFile();
+        }
+        _logfile << log_entry << std::endl;
+        _current_size += log_entry.size();
     }
+    return *this;
+}
 
 private:
     std::string _filename;
@@ -78,7 +84,7 @@ private:
         if (_logfile.is_open()) {
             _logfile.close();
         }
-        _logfile.open(_filename, std::ios::out | std::ios::trunc); // Truncate the file
+        _logfile.open(_filename, std::ios::out | std::ios::trunc); 
         _current_size = 0;
     }
 
@@ -106,19 +112,19 @@ private:
         return (pos == std::string::npos) ? path : path.substr(pos + 1);
     }
 
-    template<typename... Args>
-    std::string formatString(const char* format, Args... args) const {
-    #pragma GCC diagnostic push
-    #pragma GCC diagnostic ignored "-Wformat-security"
-        int size = std::snprintf(nullptr, 0, format, args...) + 1; 
-        if (size <= 0) {
-            throw std::runtime_error("Error during formatting.");
-        }
-        std::vector<char> buf(size);
-        std::snprintf(buf.data(), size, format, args...);
-    #pragma GCC diagnostic pop
-        return std::string(buf.data(), buf.size() - 1); 
-    }
+    // template<typename... Args> //this is not type safe use fmtlib?
+    // std::string formatString(const char* format, Args... args) const {
+    // #pragma GCC diagnostic push
+    // #pragma GCC diagnostic ignored "-Wformat-security"
+    //     int size = std::snprintf(nullptr, 0, format, args...) + 1; 
+    //     if (size <= 0) {
+    //         throw std::runtime_error("Error during formatting.");
+    //     }
+    //     std::vector<char> buf(size);
+    //     std::snprintf(buf.data(), size, format, args...);
+    // #pragma GCC diagnostic pop
+    //     return std::string(buf.data(), buf.size() - 1); 
+    // }
 
     void sanitizeString(std::string& str) {
         str.erase(std::remove_if(str.begin(), str.end(), [](unsigned char c) {

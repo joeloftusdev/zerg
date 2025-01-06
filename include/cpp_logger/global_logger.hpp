@@ -2,12 +2,13 @@
 #define GLOBAL_LOGGER_HPP
 
 #include "logger.hpp"
-#include <string>
-#include <memory>
-#include <mutex>
-#include <fstream>
-#include <sstream>
-#include <unordered_map>
+#include <string>       // std::string
+#include <memory>       // std::shared_ptr
+#include <mutex>        // std::mutex, std::lock_guard
+#include <fstream>      // std::ifstream
+#include <sstream>      // std::istringstream
+#include <unordered_map>// std::unordered_map
+
 
 namespace cpp_logger {
 

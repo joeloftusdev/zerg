@@ -5,14 +5,14 @@
 int main() {
     cpp_logger::loadConfiguration("config.txt");
 
-    cpp_log(cpp_logger::Verbosity::DEBUG_LVL, "Debug %.1f message", 1.0); 
-    cpp_log(cpp_logger::Verbosity::INFO_LVL, "Info %d message", 2);
-    cpp_log(cpp_logger::Verbosity::WARN_LVL, "Warning %s message", "test");
-    cpp_log(cpp_logger::Verbosity::ERROR_LVL, "Error %c message", 'E');
-    cpp_log(cpp_logger::Verbosity::FATAL_LVL, "Fatal %s message with number %d", "fatal", 5);
+    cpp_log(cpp_logger::Verbosity::DEBUG_LVL, "Debug {:.1f} message", 1.0); 
+    cpp_log(cpp_logger::Verbosity::INFO_LVL, "Info {} message", 2);
+    cpp_log(cpp_logger::Verbosity::WARN_LVL, "Warning {} message", "test");
+    cpp_log(cpp_logger::Verbosity::ERROR_LVL, "Error {} message", 'E');
+    cpp_log(cpp_logger::Verbosity::FATAL_LVL, "Fatal {} message with number {}", "fatal", 5);
 
     // Use the cpp_log_with_file macro to log messages with a specific log file
-    cpp_log_with_file(cpp_logger::Verbosity::INFO_LVL, "custom_logfile.log", "Debug %.1f message", 1.0);
+    cpp_log_with_file(cpp_logger::Verbosity::INFO_LVL, "custom_logfile.log", "Debug {:.1f} message", 1.0);
 
     return 0;
 }
