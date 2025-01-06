@@ -3,7 +3,7 @@
 //#define LOG(logger, level, format, ...) logger.log(level, __FILE__, __LINE__, format, __VA_ARGS__)
 
 int main() {
-    cpp_logger::loadConfiguration("config.txt");
+    cpp_logger::loadConfiguration("cpp_logger.cfg");
 
     cpp_log(cpp_logger::Verbosity::DEBUG_LVL, "Debug {:.1f} message", 1.0); 
     cpp_log(cpp_logger::Verbosity::INFO_LVL, "Info {} message", 2);
