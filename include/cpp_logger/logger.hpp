@@ -63,7 +63,6 @@ public:
             rotateLogFile();
         }
         _logfile << log_entry << std::endl;
-        _logfile.flush(); //flush to ensure that the log is written to the file
         _current_size += log_entry.size();
     }
     return *this;
