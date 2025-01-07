@@ -26,8 +26,8 @@ enum class Verbosity {
 template<std::size_t MaxFileSize>
 class Logger {
 public:
-    explicit Logger(const std::string& filename, Verbosity logLevel = Verbosity::DEBUG_LVL)
-        : _filename(filename), _current_size(0), _log_level(logLevel) {
+    explicit Logger(std::string filename, Verbosity logLevel = Verbosity::DEBUG_LVL)
+        : _filename(std::move(filename)), _log_level(logLevel) {
         openLogFile();
     }
 
@@ -35,6 +35,27 @@ public:
         if (_logfile.is_open()) {
             _logfile.close();
         }
+    }
+
+    Logger(const Logger&) = delete;
+    Logger& operator=(const Logger&) = delete;
+
+    // move constructor and move assignment operator
+    Logger(Logger&& other) noexcept
+        : _filename(std::move(other._filename)), _logfile(std::move(other._logfile)),
+          _current_size(other._current_size), _log_level(other._log_level) {
+        other._current_size = 0;
+    }
+
+    Logger& operator=(Logger&& other) noexcept {
+        if (this != &other) {
+            _filename = std::move(other._filename);
+            _logfile = std::move(other._logfile);
+            _current_size = other._current_size;
+            _log_level = other._log_level;
+            other._current_size = 0;
+        }
+        return *this;
     }
 
     void setLogLevel(Verbosity level) {
@@ -71,7 +92,7 @@ public:
 private:
     std::string _filename;
     std::ofstream _logfile;
-    std::size_t _current_size;
+    std::size_t _current_size{};
     Verbosity _log_level;
     std::mutex _mutex;
 
@@ -91,11 +112,11 @@ private:
     std::string getCurrentTime() const {
         auto now = std::chrono::system_clock::now();
         auto in_time_t = std::chrono::system_clock::to_time_t(now);
-        std::tm buf;
+        std::tm buf{};
         localtime_r(&in_time_t, &buf); // Use thread-safe localtime_r
-        std::ostringstream ss;
-        ss << std::put_time(&buf, "%Y-%m-%d %X");
-        return ss.str();
+        std::ostringstream stream;
+        stream << std::put_time(&buf, "%Y-%m-%d %X");
+        return stream.str();
     }
 
     std::string getVerbosityString(Verbosity level) const {
@@ -115,9 +136,9 @@ private:
     }
 
     void sanitizeString(std::string& str) {
-        str.erase(std::remove_if(str.begin(), str.end(), [](unsigned char c) {
-            return !std::isprint(c);
-        }), str.end());
+    str.erase(std::remove_if(str.begin(), str.end(), [](unsigned char c) {
+        return std::isprint(c) == 0;
+    }), str.end());
     }
 };
 
