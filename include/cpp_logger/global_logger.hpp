@@ -33,13 +33,14 @@ inline std::shared_ptr<Logger<DEFAULT_BUFFER_SIZE>>& getGlobalLogger(const std::
             instances[filename] = std::make_shared<Logger<DEFAULT_BUFFER_SIZE>>(filename);
         }
         return instances[filename];
-    } else {
-        std::string defaultFilename = getLogFileName();
-        if (instances.find(defaultFilename) == instances.end()) {
-            instances[defaultFilename] = std::make_shared<Logger<DEFAULT_BUFFER_SIZE>>(defaultFilename);
-        }
-        return instances[defaultFilename];
     }
+
+    std::string defaultFilename = getLogFileName();
+    if (instances.find(defaultFilename) == instances.end()) {
+        instances[defaultFilename] = std::make_shared<Logger<DEFAULT_BUFFER_SIZE>>(defaultFilename);
+    }
+        return instances[defaultFilename];
+    
 }
 
 inline void setGlobalLoggerVerbosity(Verbosity level) {
@@ -70,7 +71,8 @@ inline void loadConfiguration(const std::string& configFile) {
     std::string line;
     while (std::getline(file, line)) {
         std::istringstream iss(line);
-        std::string key, value;
+        std::string key;
+        std::string value;
         if (std::getline(iss, key, '=') && std::getline(iss, value)) {
             if (key == "verbosity") {
                 setGlobalLoggerVerbosity(stringToVerbosity(value));
@@ -79,12 +81,27 @@ inline void loadConfiguration(const std::string& configFile) {
     }
 }
 
+// template functions for logging with the global loggers to reduce reliance on macros
+template <typename... Args>
+constexpr void log(const Verbosity level, const char* file, int line, const std::string& format, Args&&... args) {
+    getGlobalLogger()->log(level, file, line, format.c_str(), std::forward<Args>(args)...);
+}
+
+template <typename... Args>
+constexpr void logWithFile(const Verbosity level, const std::string& loggerFile, const char* file, int line, const std::string& format, Args&&... args) {
+    getGlobalLogger(loggerFile)->log(level, file, line, format.c_str(), std::forward<Args>(args)...);
+}
+
 } // namespace cpp_logger
 
+// macros are used here to automatically capture __FILE__ and __LINE__ at the call site
+// this ensures that the correct file name and line number are logged
+// NOLINTNEXTLINE is used to suppress clang-tidy warnings about macro usage
 #define cpp_log(level, format, ...) \
-    cpp_logger::getGlobalLogger()->log(level, __FILE__, __LINE__, format, ##__VA_ARGS__)
+    cpp_logger::log(level, __FILE__, __LINE__, format, ##__VA_ARGS__) // NOLINT
 
+// NOLINTNEXTLINE is used to suppress clang-tidy warnings about macro usage
 #define cpp_log_with_file(level, file, format, ...) \
-    cpp_logger::getGlobalLogger(file)->log(level, __FILE__, __LINE__, format, ##__VA_ARGS__)
+    cpp_logger::logWithFile(level, file, __FILE__, __LINE__, format, ##__VA_ARGS__) // NOLINT
 
 #endif // GLOBAL_LOGGER_HPP
