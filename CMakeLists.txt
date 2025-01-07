@@ -33,4 +33,6 @@ if(SANITIZER_FLAGS)
     target_link_options(main PRIVATE ${SANITIZER_FLAGS})
 endif()
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 include(cpplogger_gtests)
