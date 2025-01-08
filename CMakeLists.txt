@@ -35,4 +35,14 @@ endif()
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+find_program(CLANG_FORMAT "clang-format")
+if(CLANG_FORMAT)
+    file(GLOB_RECURSE ALL_CXX_SOURCE_FILES *.cpp *.hpp)
+    add_custom_target(
+        clang-format
+        COMMAND ${CLANG_FORMAT} -i ${ALL_CXX_SOURCE_FILES}
+        COMMENT "Running clang-format"
+    )
+endif()
+
 include(cpplogger_gtests)

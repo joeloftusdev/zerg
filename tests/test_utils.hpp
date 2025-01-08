@@ -5,7 +5,8 @@
 #include <sstream>
 #include <string>
 
-inline std::string readFile(const std::string& filename) {
+inline std::string readFile(const std::string &filename)
+{
     std::ifstream file(filename);
     std::stringstream buffer;
     buffer << file.rdbuf();
