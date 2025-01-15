@@ -20,7 +20,13 @@ inline std::string &getLogFileName()
     return logFileName;
 }
 
-inline void setLogFileName(const std::string &filename) { getLogFileName() = filename; }
+inline std::string &getLogFilePath()
+{
+    static std::string logFilePath = "./"; // default to current directory
+    return logFilePath;
+}
+
+inline void setLogFilePath(const std::string &path) { getLogFilePath() = path; }
 
 inline std::shared_ptr<Logger<DEFAULT_BUFFER_SIZE>> &
 getGlobalLogger(const std::string &filename = "")
@@ -29,24 +35,15 @@ getGlobalLogger(const std::string &filename = "")
     static std::mutex mtx;
 
     std::lock_guard<std::mutex> lock(mtx);
-    if (!filename.empty())
+    std::string fullPath = getLogFilePath() + (filename.empty() ? getLogFileName() : filename);
+    if (instances.find(fullPath) == instances.end())
     {
-        if (instances.find(filename) == instances.end())
-        {
-            instances[filename] = std::make_shared<Logger<DEFAULT_BUFFER_SIZE>>(filename);
-        }
-        return instances[filename];
+        instances[fullPath] = std::make_shared<Logger<DEFAULT_BUFFER_SIZE>>(fullPath);
     }
-
-    std::string defaultFilename = getLogFileName();
-    if (instances.find(defaultFilename) == instances.end())
-    {
-        instances[defaultFilename] = std::make_shared<Logger<DEFAULT_BUFFER_SIZE>>(defaultFilename);
-    }
-    return instances[defaultFilename];
+    return instances[fullPath];
 }
 
-inline void setGlobalLoggerVerbosity(Verbosity level) { getGlobalLogger()->setLogLevel(level); }
+inline void setGlobalLoggerVerbosity(const Verbosity level) { getGlobalLogger()->setLogLevel(level); }
 
 inline Verbosity stringToVerbosity(const std::string &level)
 {
@@ -56,8 +53,7 @@ inline Verbosity stringToVerbosity(const std::string &level)
         {"WARN", Verbosity::WARN_LVL},
         {"ERROR", Verbosity::ERROR_LVL},
         {"FATAL", Verbosity::FATAL_LVL}};
-    auto it = verbosityMap.find(level);
-    if (it != verbosityMap.end())
+    if (const auto it = verbosityMap.find(level); it != verbosityMap.end())
     {
         return it->second;
     }
@@ -77,12 +73,15 @@ inline void loadConfiguration(const std::string &configFile)
     {
         std::istringstream iss(line);
         std::string key;
-        std::string value;
-        if (std::getline(iss, key, '=') && std::getline(iss, value))
+        if (std::string value; std::getline(iss, key, '=') && std::getline(iss, value))
         {
             if (key == "verbosity")
             {
                 setGlobalLoggerVerbosity(stringToVerbosity(value));
+            }
+            else if (key == "logFilePath")
+            {
+                setLogFilePath(value);
             }
         }
     }
