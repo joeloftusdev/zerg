@@ -5,6 +5,11 @@ project(LoggingLibrary)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED True)
+if(NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
+endif()
+
 
 include_directories(include)
 include_directories(external/fmt/include)
@@ -46,3 +51,4 @@ if(CLANG_FORMAT)
 endif()
 
 include(cpplogger_gtests)
+include(benchmark)
