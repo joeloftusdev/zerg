@@ -25,6 +25,8 @@ TEST(LoggerTest, LogMultipleMessages)
     LOG_TEST(logger, cpp_logger::Verbosity::DEBUG_LVL, "First message");
     LOG_TEST(logger, cpp_logger::Verbosity::DEBUG_LVL, "Second message");
 
+    logger.sync();
+
     std::string log_content = readFile(filename);
     EXPECT_NE(log_content.find("First message"), std::string::npos);
     EXPECT_NE(log_content.find("Second message"), std::string::npos);
@@ -53,6 +55,8 @@ TEST(LoggerTest, LogWithDifferentVerbosityLevels)
     LOG_TEST(logger, cpp_logger::Verbosity::WARN_LVL, "Warning message");
     LOG_TEST(logger, cpp_logger::Verbosity::ERROR_LVL, "Error message");
 
+    logger.sync();
+
     std::string log_content = readFile(filename);
     EXPECT_EQ(log_content.find("Debug message"), std::string::npos);
     EXPECT_EQ(log_content.find("Info message"), std::string::npos);
@@ -73,6 +77,9 @@ TEST(LoggerTest, LogFormattedMessages)
     LOG_TEST(logger, cpp_logger::Verbosity::FATAL_LVL, "Fatal {} message with number {}", "fatal",
              5);
 
+    logger.sync();
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+
     std::string log_content = readFile(filename);
     EXPECT_NE(log_content.find("Debug 1.0 message"), std::string::npos);
     EXPECT_NE(log_content.find("Info 2 message"), std::string::npos);
@@ -88,6 +95,8 @@ TEST(LoggerTest, SanitizeNonPrintableCharacters)
 
     LOG_TEST(logger, cpp_logger::Verbosity::DEBUG_LVL,
              "Test message with non-printable \x01\x02\x03 characters");
+
+    logger.sync();
 
     std::string log_content = readFile(filename);
     EXPECT_NE(log_content.find("Test message with non-printable  characters"), std::string::npos);

@@ -12,7 +12,7 @@ void logMessages(const std::string &filename, int thread_id)
         cpp_log_with_file(cpp_logger::Verbosity::INFO_LVL, filename, "Thread {}, message {}",
                           thread_id, i);
         std::this_thread::sleep_for(
-            std::chrono::milliseconds(10)); // small delay like realworld example
+            std::chrono::milliseconds(10)); 
     }
 }
 
@@ -30,9 +30,16 @@ TEST(GlobalLoggerTest, LogWithDifferentFiles)
     cpp_log(cpp_logger::Verbosity::INFO_LVL, "Test message with default file");
     cpp_log_with_file(cpp_logger::Verbosity::DEBUG_LVL, custom_filename,
                       "Test message with custom file");
+  
+
+    cpp_logger::getGlobalLogger()->sync();
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
     std::string log_content_default = readFile(default_filename);
     std::string log_content_custom = readFile(custom_filename);
+
+    std::cout << "Default log file content:\n" << log_content_default << std::endl;
+    std::cout << "Custom log file content:\n" << log_content_custom << std::endl;
 
     EXPECT_NE(log_content_default.find("Test message with default file"), std::string::npos);
     EXPECT_NE(log_content_default.find("global_logger_tests.cpp"), std::string::npos);
@@ -50,6 +57,8 @@ TEST(GlobalLoggerTest, LogWithDefaultFile)
 
     cpp_logger::getGlobalLogger(default_filename);
     cpp_log(cpp_logger::Verbosity::INFO_LVL, "Test message with default file");
+    cpp_logger::getGlobalLogger()->sync();
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
     std::string log_content = readFile(default_filename);
     EXPECT_NE(log_content.find("Test message with default file"), std::string::npos);
@@ -65,6 +74,8 @@ TEST(GlobalLoggerTest, LogWithCustomFile)
 
     cpp_log_with_file(cpp_logger::Verbosity::INFO_LVL, custom_filename,
                       "Test message with custom file");
+    cpp_logger::getGlobalLogger()->sync();
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
     std::string log_content = readFile(custom_filename);
     EXPECT_NE(log_content.find("Test message with custom file"), std::string::npos);

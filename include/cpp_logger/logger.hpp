@@ -1,16 +1,43 @@
+// Copyright 2025 Joseph A. Loftus
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
+
 #ifndef LOGGER_HPP
 #define LOGGER_HPP
 
-#include <iostream>      // std::ostream
-#include <fstream>       // std::ofstream
-#include <string>        // std::string
-#include <chrono>        // std::chrono::system_clock
-#include <ctime>         // std::localtime, std::time_t
-#include <iomanip>       // std::put_time
-#include <mutex>         // std::mutex, std::lock_guard
-#include <algorithm>     // std::remove_if
-#include <fmt/core.h>    // fmt::format
-#include <fmt/ostream.h> // fmt::runtime
+#include "constants.hpp" 
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <chrono>
+#include <ctime>
+#include <iomanip>
+#include <mutex>
+#include <algorithm>
+#include <fmt/core.h>
+#include <fmt/ostream.h>
+#include <thread>
+#include <condition_variable>
+#include <atomic>
+#include <vector>
+#include <array>
 
 namespace cpp_logger
 {
@@ -24,17 +51,37 @@ enum class Verbosity
     FATAL_LVL
 };
 
-template <std::size_t MaxFileSize> class Logger
+/*
+ * New Logger Class Updates:
+ * 1. Asynchronous Logging: Uses a separate thread to process log entries, improving performance by offloading I/O operations. @processLogQueue
+ * 2. Circular Buffer: Log entries are stored in a circular buffer, reducing the overhead of frequent file writes. @log_buffer
+ * 3. Condition Variable: Used to notify the logging thread when new log entries are available. @cv
+ * 4. Atomic Operations: Ensures thread safety for buffer indices without using a mutex in the logging path. @write_index, @read_index
+ * 5. Sync Method: Provides a way to flush the buffer and ensure all log entries are written to the file. @sync
+ * 6. Safe: No references taken to arguments unless explicitly requested. @log
+ */
+
+template <std::size_t MaxFileSize, std::size_t BufferSize = MAX_FILE_SIZE>
+class Logger
 {
-  public:
+public:
     explicit Logger(std::string filename, Verbosity logLevel = Verbosity::DEBUG_LVL)
-        : _filename(std::move(filename)), _log_level(logLevel)
+        : _filename(std::move(filename)), _log_level(logLevel), _stop_logging(false),
+          _write_index(0), _read_index(0)
     {
         openLogFile();
+        _logging_thread = std::thread(&Logger::processLogQueue, this);
     }
 
     ~Logger()
     {
+        sync();
+        _stop_logging = true;
+        _cv.notify_all();
+        if (_logging_thread.joinable())
+        {
+            _logging_thread.join();
+        }
         if (_logfile.is_open())
         {
             _logfile.close();
@@ -44,12 +91,14 @@ template <std::size_t MaxFileSize> class Logger
     Logger(const Logger &) = delete;
     Logger &operator=(const Logger &) = delete;
 
-    // move constructor and move assignment operator
     Logger(Logger &&other) noexcept
         : _filename(std::move(other._filename)), _logfile(std::move(other._logfile)),
-          _current_size(other._current_size), _log_level(other._log_level)
+          _current_size(other._current_size), _log_level(other._log_level),
+          _stop_logging(other._stop_logging.load()), _write_index(other._write_index.load()),
+          _read_index(other._read_index.load())
     {
         other._current_size = 0;
+        other._stop_logging = true;
     }
 
     Logger &operator=(Logger &&other) noexcept
@@ -60,55 +109,66 @@ template <std::size_t MaxFileSize> class Logger
             _logfile = std::move(other._logfile);
             _current_size = other._current_size;
             _log_level = other._log_level;
+            _stop_logging = other._stop_logging.load();
+            _write_index = other._write_index.load();
+            _read_index = other._read_index.load();
             other._current_size = 0;
+            other._stop_logging = true;
         }
         return *this;
     }
 
     void setLogLevel(Verbosity level)
     {
-        std::lock_guard<std::mutex> lock(_mutex);
-        _log_level = level;
+        _log_level.store(level, std::memory_order_relaxed);
     }
 
     template <typename... Args>
-    Logger &log(Verbosity level, const char *file, int line, const char *format, Args &&...args)
+    void log(Verbosity level, const char *file, int line, const char *format, Args &&...args)
     {
-        std::lock_guard<std::mutex> lock(_mutex);
-        if (level >= _log_level)
+        if (level >= _log_level.load(std::memory_order_relaxed))
         {
-            std::ostringstream oss;
-            oss << getCurrentTime() << " [" << getVerbosityString(level) << "] "
-                << getFileName(file) << ":" << line << " ";
-
-            // type safe format of the string using fmt::format
-            try
-            {
-                oss << fmt::format(fmt::runtime(format), std::forward<Args>(args)...);
-            }
-            catch (const fmt::format_error &e)
-            {
-                oss << "[FORMAT ERROR: " << e.what() << "]";
-            }
-
-            std::string log_entry = oss.str();
-            sanitizeString(log_entry);
-            if (_current_size + log_entry.size() > MaxFileSize)
-            {
-                rotateLogFile();
-            }
-            _logfile << log_entry << std::endl;
-            _current_size += log_entry.size();
+            auto write_index = _write_index.fetch_add(1, std::memory_order_relaxed) % BufferSize;
+            LogEntry &entry = _log_buffer[write_index];
+            entry.level = level;
+            entry.file = file;
+            entry.line = line;
+            entry.format = format;
+            entry.args = {fmt::format(fmt::runtime(format), std::forward<Args>(args)...)};
+            _cv.notify_one();
         }
-        return *this;
     }
 
-  private:
+    void sync()
+    {
+        while (_read_index.load(std::memory_order_relaxed) != _write_index.load(std::memory_order_relaxed))
+        {
+            processLogEntry(_log_buffer[_read_index.fetch_add(1, std::memory_order_relaxed) % BufferSize]);
+            _logfile.flush();
+        }
+    }
+
+private:
+    struct LogEntry
+    {
+        Verbosity level{};
+        const char *file{};
+        int line{};
+        const char *format{};
+        std::string args;
+    };
+
     std::string _filename;
     std::ofstream _logfile;
     std::size_t _current_size{};
-    Verbosity _log_level;
-    std::mutex _mutex;
+    std::atomic<Verbosity> _log_level;
+    std::array<LogEntry, BufferSize> _log_buffer;
+    std::atomic<std::size_t> _write_index;
+    std::atomic<std::size_t> _read_index;
+    std::mutex _queue_mutex;
+    std::condition_variable _cv;
+    std::thread _logging_thread;
+    std::atomic<bool> _stop_logging;
 
     void openLogFile()
     {
@@ -126,12 +186,47 @@ template <std::size_t MaxFileSize> class Logger
         _current_size = 0;
     }
 
+    void processLogQueue()
+    {
+        while (!_stop_logging)
+        {
+            std::unique_lock<std::mutex> lock(_queue_mutex);
+            _cv.wait(lock, [this] { return _read_index.load(std::memory_order_relaxed) != _write_index.load(std::memory_order_relaxed) || _stop_logging; });
+            while (_read_index.load(std::memory_order_relaxed) != _write_index.load(std::memory_order_relaxed))
+            {
+                processLogEntry(_log_buffer[_read_index.fetch_add(1, std::memory_order_relaxed) % BufferSize]);
+            }
+        }
+        // Process remaining log entries before exiting
+        while (_read_index.load(std::memory_order_relaxed) != _write_index.load(std::memory_order_relaxed))
+        {
+            processLogEntry(_log_buffer[_read_index.fetch_add(1, std::memory_order_relaxed) % BufferSize]);
+        }
+    }
+
+    void processLogEntry(const LogEntry &entry)
+    {
+        std::ostringstream oss;
+        oss << getCurrentTime() << " [" << getVerbosityString(entry.level) << "] "
+            << getFileName(entry.file) << ":" << entry.line << " " << entry.args;
+
+        std::string log_entry = oss.str();
+        sanitizeString(log_entry);
+
+        if (_current_size + log_entry.size() > MaxFileSize)
+        {
+            rotateLogFile();
+        }
+        _logfile << log_entry << std::endl;
+        _current_size += log_entry.size();
+    }
+
     std::string getCurrentTime() const
     {
         auto now = std::chrono::system_clock::now();
         auto in_time_t = std::chrono::system_clock::to_time_t(now);
         std::tm buf{};
-        localtime_r(&in_time_t, &buf); // Use thread-safe localtime_r
+        localtime_r(&in_time_t, &buf);
         std::ostringstream stream;
         stream << std::put_time(&buf, "%Y-%m-%d %X");
         return stream.str();
@@ -173,3 +268,4 @@ template <std::size_t MaxFileSize> class Logger
 } // namespace cpp_logger
 
 #endif // LOGGER_HPP
+
