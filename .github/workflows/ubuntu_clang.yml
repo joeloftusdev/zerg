@@ -29,7 +29,7 @@ jobs:
       run: |
         mkdir -p build
         cd build
-        cmake -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="$([[ ${{ matrix.except }} == true ]] && echo -fno-exceptions || echo -fexceptions) $([[ ${{ matrix.pic }} == true ]] && echo -fPIC || echo -fno-PIC) $([[ ${{ matrix.rtti }} == true ]] && echo -frtti || echo -fno-rtti)" ..
+        cmake -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=Release -DBUILD_BENCHMARKS=OFF -DCMAKE_CXX_FLAGS="$([[ ${{ matrix.except }} == true ]] && echo -fno-exceptions || echo -fexceptions) $([[ ${{ matrix.pic }} == true ]] && echo -fPIC || echo -fno-PIC) $([[ ${{ matrix.rtti }} == true ]] && echo -frtti || echo -fno-rtti)" ..
         make -j2
 
     - name: Test

@@ -51,4 +51,7 @@ if(CLANG_FORMAT)
 endif()
 
 include(cpplogger_gtests)
-include(benchmark)
+
+if(BUILD_BENCHMARKS)
+    include(benchmark)
+endif()
