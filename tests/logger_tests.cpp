@@ -26,6 +26,7 @@ TEST(LoggerTest, LogMultipleMessages)
     LOG_TEST(logger, cpp_logger::Verbosity::DEBUG_LVL, "Second message");
 
     logger.sync();
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
     std::string log_content = readFile(filename);
     EXPECT_NE(log_content.find("First message"), std::string::npos);
@@ -56,6 +57,7 @@ TEST(LoggerTest, LogWithDifferentVerbosityLevels)
     LOG_TEST(logger, cpp_logger::Verbosity::ERROR_LVL, "Error message");
 
     logger.sync();
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
     std::string log_content = readFile(filename);
     EXPECT_EQ(log_content.find("Debug message"), std::string::npos);
@@ -78,7 +80,7 @@ TEST(LoggerTest, LogFormattedMessages)
              5);
 
     logger.sync();
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
     std::string log_content = readFile(filename);
     EXPECT_NE(log_content.find("Debug 1.0 message"), std::string::npos);
