@@ -9,11 +9,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        except: [true, false]
-        pic: [true, false]
-        rtti: [true, false]
     steps:
     - uses: actions/checkout@v2
 
@@ -29,7 +24,7 @@ jobs:
       run: |
         mkdir -p build
         cd build
-        cmake -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=Release -DBUILD_BENCHMARKS=OFF -DCMAKE_CXX_FLAGS="$([[ ${{ matrix.except }} == true ]] && echo -fno-exceptions || echo -fexceptions) $([[ ${{ matrix.pic }} == true ]] && echo -fPIC || echo -fno-PIC) $([[ ${{ matrix.rtti }} == true ]] && echo -frtti || echo -fno-rtti)" ..
+        cmake -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=Release -DBUILD_BENCHMARKS=OFF ..
         make -j2
 
     - name: Test
