@@ -22,15 +22,15 @@
 #ifndef LOGGER_HPP
 #define LOGGER_HPP
 
-#include "constants.hpp" 
+#include "constants.hpp"
+#include "lock_free_queue.hpp"
 #include <iostream>
 #include <fstream>
 #include <string>
 #include <chrono>
 #include <ctime>
 #include <iomanip>
-#include <mutex>
-#include <algorithm>
+
 #include <fmt/core.h>
 #include <fmt/ostream.h>
 #include <thread>
@@ -67,7 +67,7 @@ class Logger
 public:
     explicit Logger(std::string filename, Verbosity logLevel = Verbosity::DEBUG_LVL)
         : _filename(std::move(filename)), _log_level(logLevel), _stop_logging(false),
-          _write_index(0), _read_index(0)
+          _log_buffer(BufferSize)
     {
         openLogFile();
         _logging_thread = std::thread(&Logger::processLogQueue, this);
@@ -94,8 +94,7 @@ public:
     Logger(Logger &&other) noexcept
         : _filename(std::move(other._filename)), _logfile(std::move(other._logfile)),
           _current_size(other._current_size), _log_level(other._log_level),
-          _stop_logging(other._stop_logging.load()), _write_index(other._write_index.load()),
-          _read_index(other._read_index.load())
+          _stop_logging(other._stop_logging.load()), _log_buffer(std::move(other._log_buffer))
     {
         other._current_size = 0;
         other._stop_logging = true;
@@ -110,8 +109,7 @@ public:
             _current_size = other._current_size;
             _log_level = other._log_level;
             _stop_logging = other._stop_logging.load();
-            _write_index = other._write_index.load();
-            _read_index = other._read_index.load();
+            _log_buffer = std::move(other._log_buffer);
             other._current_size = 0;
             other._stop_logging = true;
         }
@@ -128,22 +126,30 @@ public:
     {
         if (level >= _log_level.load(std::memory_order_relaxed))
         {
-            auto write_index = _write_index.fetch_add(1, std::memory_order_relaxed) % BufferSize;
-            LogEntry &entry = _log_buffer[write_index];
+            // format  message outside of the critical section
+            LogEntry entry;
             entry.level = level;
             entry.file = file;
             entry.line = line;
             entry.format = format;
             entry.args = {fmt::format(fmt::runtime(format), std::forward<Args>(args)...)};
-            _cv.notify_one();
+
+            {
+                std::lock_guard<std::mutex> lock(_log_mutex); // lock only for enqueue
+                if (_log_buffer.enqueue(entry))
+                {
+                    _cv.notify_one();
+                }
+            }
         }
     }
 
     void sync()
     {
-        while (_read_index.load(std::memory_order_relaxed) != _write_index.load(std::memory_order_relaxed))
+        LogEntry entry;
+        while (_log_buffer.dequeue(entry))
         {
-            processLogEntry(_log_buffer[_read_index.fetch_add(1, std::memory_order_relaxed) % BufferSize]);
+            processLogEntry(entry);
             _logfile.flush();
         }
     }
@@ -162,13 +168,11 @@ private:
     std::ofstream _logfile;
     std::size_t _current_size{};
     std::atomic<Verbosity> _log_level;
-    std::array<LogEntry, BufferSize> _log_buffer;
-    std::atomic<std::size_t> _write_index;
-    std::atomic<std::size_t> _read_index;
-    std::mutex _queue_mutex;
+    LockFreeQueue<LogEntry> _log_buffer;
     std::condition_variable _cv;
     std::thread _logging_thread;
     std::atomic<bool> _stop_logging;
+    std::mutex _log_mutex;
 
     void openLogFile()
     {
@@ -190,17 +194,18 @@ private:
     {
         while (!_stop_logging)
         {
-            std::unique_lock<std::mutex> lock(_queue_mutex);
-            _cv.wait(lock, [this] { return _read_index.load(std::memory_order_relaxed) != _write_index.load(std::memory_order_relaxed) || _stop_logging; });
-            while (_read_index.load(std::memory_order_relaxed) != _write_index.load(std::memory_order_relaxed))
+            LogEntry entry;
+            while (_log_buffer.dequeue(entry))
             {
-                processLogEntry(_log_buffer[_read_index.fetch_add(1, std::memory_order_relaxed) % BufferSize]);
+                processLogEntry(entry);
             }
+            //improve performance by waiting for a notification instead of polling
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
-        // Process remaining log entries before exiting
-        while (_read_index.load(std::memory_order_relaxed) != _write_index.load(std::memory_order_relaxed))
+        LogEntry entry;
+        while (_log_buffer.dequeue(entry))
         {
-            processLogEntry(_log_buffer[_read_index.fetch_add(1, std::memory_order_relaxed) % BufferSize]);
+            processLogEntry(entry);
         }
     }
 
@@ -268,4 +273,3 @@ private:
 } // namespace cpp_logger
 
 #endif // LOGGER_HPP
-
