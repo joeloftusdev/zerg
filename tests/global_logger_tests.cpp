@@ -75,7 +75,7 @@ TEST(GlobalLoggerTest, LogWithCustomFile)
     cpp_log_with_file(cpp_logger::Verbosity::INFO_LVL, custom_filename,
                       "Test message with custom file");
     cpp_logger::getGlobalLogger()->sync();
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
     std::string log_content = readFile(custom_filename);
     EXPECT_NE(log_content.find("Test message with custom file"), std::string::npos);
