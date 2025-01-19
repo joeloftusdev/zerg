@@ -1,0 +1,33 @@
+name: Ubuntu-Clang-Sanitizer
+
+on:
+  push:
+    branches: [ '*' ]
+  pull_request:
+    branches: [ '*' ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Setup Clang
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y clang-15 lld-15 libc++-15-dev libc++abi-15-dev
+
+    - name: Init submodules
+      run: git submodule update --init --recursive
+
+    - name: Build
+      run: |
+        mkdir -p build
+        cd build
+        cmake -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=Release -DENABLE_THREAD_SANITIZER=ON -DBUILD_BENCHMARKS=ON ..
+        make -j2
+
+    - name: Test
+      run: |
+        cd build
+        ctest -j2
