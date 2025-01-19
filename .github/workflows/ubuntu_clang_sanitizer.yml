@@ -24,7 +24,7 @@ jobs:
       run: |
         mkdir -p build
         cd build
-        cmake -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=Release -DENABLE_THREAD_SANITIZER=ON -DBUILD_BENCHMARKS=ON ..
+        cmake -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=Release -DENABLE_THREAD_SANITIZER=ON -DBUILD_BENCHMARKS=ON -DCMAKE_CXX_FLAGS="-fsanitize=thread -fno-omit-frame-pointer -g" -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=thread" ..
         make -j2
 
     - name: Test
