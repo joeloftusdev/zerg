@@ -52,13 +52,14 @@ enum class Verbosity
 };
 
 /*
- * New Logger Class Updates:
- * 1. Asynchronous Logging: Uses a separate thread to process log entries, improving performance by offloading I/O operations. @processLogQueue
- * 2. Circular Buffer: Log entries are stored in a circular buffer, reducing the overhead of frequent file writes. @log_buffer
- * 3. Condition Variable: Used to notify the logging thread when new log entries are available. @cv
- * 4. Atomic Operations: Ensures thread safety for buffer indices without using a mutex in the logging path. @write_index, @read_index
- * 5. Sync Method: Provides a way to flush the buffer and ensure all log entries are written to the file. @sync
- * 6. Safe: No references taken to arguments unless explicitly requested. @log
+ * Logger Class Features:
+ * 1. Asynchronous Logging: Background thread processes entries for improved performance @processLogQueue
+ * 2. Lock-Free Queue: Thread-safe queue with SPSC optimization for efficient passing of log entries @_log_buffer
+ * 3. Event-Driven: Uses condition variable for immediate notification of new entries @_cv
+ * 4. Batched Processing: Groups log entries to reduce I/O operations and lock contention
+ * 5. Safe Shutdown: Ensures all pending logs are written before destruction @sync
+ * 6. Thread-Safe: File operations protected by mutex, queue operations lock-free
+ * 7. File Rotation: Automatic log file rotation when size limit reached @rotateLogFile
  */
 
 template <std::size_t MaxFileSize, std::size_t BufferSize = MAX_FILE_SIZE>
@@ -150,8 +151,9 @@ public:
         while (_log_buffer.dequeue(entry))
         {
             processLogEntry(entry);
-            _logfile.flush();
         }
+        std::lock_guard<std::mutex> lock(_file_mutex);
+        _logfile.flush();
     }
 
 private:
@@ -173,6 +175,7 @@ private:
     std::thread _logging_thread;
     std::atomic<bool> _stop_logging;
     std::mutex _log_mutex;
+    mutable std::mutex _file_mutex;
 
     void openLogFile()
     {
@@ -190,34 +193,78 @@ private:
         _current_size = 0;
     }
 
+    // void processLogQueue()
+    // {
+    //     std::unique_lock<std::mutex> lock(_log_mutex);
+        
+    //     while (!_stop_logging)
+    //     {
+    //         // still polling but much better than before
+    //         _cv.wait_for(lock, std::chrono::milliseconds(100), 
+    //             [this] { return _stop_logging || !_log_buffer.isEmpty(); });
+                
+    //         lock.unlock(); 
+            
+    //         LogEntry entry;
+    //         while (_log_buffer.dequeue(entry))
+    //         {
+    //             processLogEntry(entry);
+    //         }
+            
+    //         lock.lock(); 
+    //     }
+        
+    //     lock.unlock();
+    //     LogEntry entry;
+    //     while (_log_buffer.dequeue(entry))
+    //     {
+    //         processLogEntry(entry); 
+    //     }
+    // }
+
     void processLogQueue()
     {
+        std::unique_lock<std::mutex> lock(_log_mutex);
+        
         while (!_stop_logging)
         {
+            // wait until notified or stopped,  no longer polling
+            _cv.wait(lock, [this] { 
+                return _stop_logging || !_log_buffer.isEmpty(); 
+            });
+            
+            if (_stop_logging) break;
+                
+            std::vector<LogEntry> batch;
             LogEntry entry;
-            while (_log_buffer.dequeue(entry))
-            {
+            
+            // batch of entries under lock
+            while (_log_buffer.dequeue(entry)) {
+                batch.push_back(std::move(entry));
+            }
+            
+            // process batch without lock
+            lock.unlock();
+            for (const auto& entry : batch) {
                 processLogEntry(entry);
             }
-            //improve performance by waiting for a notification instead of polling
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
-        }
-        LogEntry entry;
-        while (_log_buffer.dequeue(entry))
-        {
-            processLogEntry(entry);
+            lock.lock();
         }
     }
 
     void processLogEntry(const LogEntry &entry)
     {
-        std::ostringstream oss;
-        oss << getCurrentTime() << " [" << getVerbosityString(entry.level) << "] "
-            << getFileName(entry.file) << ":" << entry.line << " " << entry.args;
+        // format log entry wth fmt
+        std::string log_entry = fmt::format("{} [{}] {}:{} {}",
+        getCurrentTime(), getVerbosityString(entry.level),
+        getFileName(entry.file), entry.line, entry.args);
 
-        std::string log_entry = oss.str();
+        
         sanitizeString(log_entry);
 
+        // Im now protecting file operations with a mutex
+        std::lock_guard<std::mutex> lock(_file_mutex);
+        
         if (_current_size + log_entry.size() > MaxFileSize)
         {
             rotateLogFile();

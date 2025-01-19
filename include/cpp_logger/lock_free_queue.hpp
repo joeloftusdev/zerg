@@ -3,44 +3,90 @@
 
 #include <atomic>
 #include <vector>
+#include <cstddef>
 
-template <typename T>
-class LockFreeQueue
-{
+// cache line size on most x86 processors
+constexpr size_t CACHE_LINE_SIZE = 64;
+
+//TODO add support for ARM processors
+
+// #if defined(__x86_64__) || defined(_M_X64)
+//     constexpr size_t CACHE_LINE_SIZE = 64;
+// #elif defined(__aarch64__) || defined(__arm__)
+//     constexpr size_t CACHE_LINE_SIZE = 128;  
+// #else
+//     constexpr size_t CACHE_LINE_SIZE = 64;   
+// #endif
+
+template<typename T>
+class LockFreeQueue {
+    // aligning cache line to prevent false sharing
+    struct alignas(CACHE_LINE_SIZE) AlignedIndex {
+        std::atomic<size_t> value;
+        char padding[CACHE_LINE_SIZE - sizeof(std::atomic<size_t>)];
+    };
+
 public:
-    explicit LockFreeQueue(std::size_t capacity)
-        : _capacity(capacity), _buffer(capacity), _head(0), _tail(0) {}
+    explicit LockFreeQueue(size_t capacity) 
+        : _capacity(nextPowerOf2(capacity))
+        , _mask(_capacity - 1)
+        , _buffer(_capacity)
+        , _head{0}
+        , _tail{0}
+    {}
 
-    bool enqueue(const T &item)
-    {
-        std::size_t head = _head.load(std::memory_order_relaxed);
-        std::size_t next_head = (head + 1) % _capacity;
-        if (next_head != _tail.load(std::memory_order_acquire))
-        {
-            _buffer[head] = item;
-            _head.store(next_head, std::memory_order_release);
-            return true;
-        }
-        return false; 
-    }
-
-    bool dequeue(T &item)
-    {
-        std::size_t tail = _tail.load(std::memory_order_relaxed);
-        if (tail == _head.load(std::memory_order_acquire))
-        {
+    bool enqueue(const T& item) {
+        const size_t current_head = _head.value.load(std::memory_order_relaxed);
+        const size_t next_head = (current_head + 1) & _mask;
+        
+        if (next_head == _tail.value.load(std::memory_order_acquire)) {
             return false; 
         }
-        item = _buffer[tail];
-        _tail.store((tail + 1) % _capacity, std::memory_order_release);
+
+        _buffer[current_head] = item;
+        _head.value.store(next_head, std::memory_order_release);
         return true;
     }
 
+    bool dequeue(T& item) {
+        const size_t current_tail = _tail.value.load(std::memory_order_relaxed);
+        
+        if (current_tail == _head.value.load(std::memory_order_acquire)) {
+            return false; 
+        }
+
+        item = _buffer[current_tail];
+        _tail.value.store((current_tail + 1) & _mask, std::memory_order_release);
+        return true;
+    }
+
+    size_t capacity() const { return _capacity; }
+
+    bool isEmpty() const {
+        return _head.value.load(std::memory_order_acquire) == 
+               _tail.value.load(std::memory_order_acquire);
+    }
+    
+
 private:
-    const std::size_t _capacity;
+    // round up to next power of 2
+    static size_t nextPowerOf2(size_t v) {
+        v--;
+        v |= v >> 1;
+        v |= v >> 2;
+        v |= v >> 4;
+        v |= v >> 8;
+        v |= v >> 16;
+        v |= v >> 32;
+        v++;
+        return v;
+    }
+
+    const size_t _capacity;
+    const size_t _mask;
     std::vector<T> _buffer;
-    std::atomic<std::size_t> _head;
-    std::atomic<std::size_t> _tail;
+    AlignedIndex _head;  // producer writes
+    AlignedIndex _tail;  // consumer reads
 };
 
 #endif // LOCK_FREE_QUEUE_HPP

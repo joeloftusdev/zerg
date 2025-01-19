@@ -89,3 +89,12 @@ LOG_BENCH(logger_benchmark_str, logger->log(cpp_logger::Verbosity::INFO_LVL, __F
 // I.E 
 // export PRODUCER_CPU=2
 // export CONSUMER_CPU=1
+
+// Sample output:
+// logger_benchmark                50.9 ns         50.9 ns     13063820
+// logger_benchmark_int            61.2 ns         61.2 ns     11383521
+// logger_benchmark_long           65.7 ns         65.7 ns     11433033
+// logger_benchmark_double          103 ns          103 ns      6903353
+// logger_benchmark_c_str          61.3 ns         61.3 ns     10961341
+// logger_benchmark_str_view       64.4 ns         64.4 ns      7803286
+// logger_benchmark_str            60.8 ns         60.8 ns     11676261
