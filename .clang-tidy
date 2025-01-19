@@ -17,7 +17,8 @@ clang-analyzer-*,
 -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
 -readability-named-parameter,
 -cert-env33-c,
--readability-identifier-length
+-readability-identifier-length,
+-google-readability-todo
 '
 
 

@@ -25,6 +25,7 @@
 #include <atomic>
 #include <vector>
 #include <cstddef>
+#include <array>
 
 // cache line size on most x86 processors
 constexpr size_t CACHE_LINE_SIZE = 64;
@@ -39,12 +40,20 @@ constexpr size_t CACHE_LINE_SIZE = 64;
 //     constexpr size_t CACHE_LINE_SIZE = 64;   
 // #endif
 
+//std::hardware_destructive_interference_size could do this but I want compatibility with C++17 compilers
+
+constexpr size_t SHIFT_1 = 1;   
+constexpr size_t SHIFT_2 = 2;   
+constexpr size_t SHIFT_4 = 4; 
+constexpr size_t SHIFT_8 = 8;
+constexpr size_t SHIFT_16 = 16;
+constexpr size_t SHIFT_32 = 32;
+
 template<typename T>
 class LockFreeQueue {
-    // aligning cache line to prevent false sharing
     struct alignas(CACHE_LINE_SIZE) AlignedIndex {
-        std::atomic<size_t> value;
-        char padding[CACHE_LINE_SIZE - sizeof(std::atomic<size_t>)];
+        std::atomic<size_t> value{0};
+        std::array<char, CACHE_LINE_SIZE - sizeof(std::atomic<size_t>)> padding{};
     };
 
 public:
@@ -52,11 +61,9 @@ public:
         : _capacity(nextPowerOf2(capacity))
         , _mask(_capacity - 1)
         , _buffer(_capacity)
-        , _head{0}
-        , _tail{0}
     {}
 
-    bool enqueue(const T& item) {
+    [[nodiscard]] bool enqueue(const T& item) {
         const size_t current_head = _head.value.load(std::memory_order_relaxed);
         const size_t next_head = (current_head + 1) & _mask;
         
@@ -69,7 +76,7 @@ public:
         return true;
     }
 
-    bool dequeue(T& item) {
+    [[nodiscard]] bool dequeue(T& item) {
         const size_t current_tail = _tail.value.load(std::memory_order_relaxed);
         
         if (current_tail == _head.value.load(std::memory_order_acquire)) {
@@ -81,9 +88,9 @@ public:
         return true;
     }
 
-    size_t capacity() const { return _capacity; }
+    [[nodiscard]] size_t capacity() const { return _capacity; }
 
-    bool isEmpty() const {
+    [[nodiscard]] bool isEmpty() const {
         return _head.value.load(std::memory_order_acquire) == 
                _tail.value.load(std::memory_order_acquire);
     }
@@ -93,12 +100,12 @@ private:
     // round up to next power of 2
     static size_t nextPowerOf2(size_t v) {
         v--;
-        v |= v >> 1;
-        v |= v >> 2;
-        v |= v >> 4;
-        v |= v >> 8;
-        v |= v >> 16;
-        v |= v >> 32;
+        v |= v >> SHIFT_1;
+        v |= v >> SHIFT_2;
+        v |= v >> SHIFT_4;
+        v |= v >> SHIFT_8;
+        v |= v >> SHIFT_16;
+        v |= v >> SHIFT_32;
         v++;
         return v;
     }
@@ -106,8 +113,8 @@ private:
     const size_t _capacity;
     const size_t _mask;
     std::vector<T> _buffer;
-    AlignedIndex _head;  // producer writes
-    AlignedIndex _tail;  // consumer reads
+    AlignedIndex _head{};  // producer writes
+    AlignedIndex _tail{};  // consumer reads
 };
 
 #endif // LOCK_FREE_QUEUE_HPP
