@@ -26,4 +26,13 @@
 constexpr size_t DEFAULT_BUFFER_SIZE = 1024 * 1024;
 constexpr size_t MAX_FILE_SIZE = 1024;
 
+constexpr size_t CACHE_LINE_SIZE = 64;
+
+constexpr size_t SHIFT_1 = 1;   
+constexpr size_t SHIFT_2 = 2;   
+constexpr size_t SHIFT_4 = 4; 
+constexpr size_t SHIFT_8 = 8;
+constexpr size_t SHIFT_16 = 16;
+constexpr size_t SHIFT_32 = 32;
+
 #endif // CONSTANTS_HPP
