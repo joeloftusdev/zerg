@@ -137,7 +137,10 @@ public:
 
             {
                 std::lock_guard<std::mutex> lock(_log_mutex); // lock only for enqueue
-                if (_log_buffer.enqueue(entry))
+
+                // move log entry to queue. zero-copy transfer of the string data, std::string
+                // is expensive to copy
+                if (_log_buffer.enqueue(std::move(entry))) 
                 {
                     _cv.notify_one();
                 }
@@ -192,35 +195,6 @@ private:
         _logfile.open(_filename, std::ios::out | std::ios::trunc);
         _current_size = 0;
     }
-
-    // void processLogQueue()
-    // {
-    //     std::unique_lock<std::mutex> lock(_log_mutex);
-        
-    //     while (!_stop_logging)
-    //     {
-    //         // still polling but much better than before
-    //         _cv.wait_for(lock, std::chrono::milliseconds(100), 
-    //             [this] { return _stop_logging || !_log_buffer.isEmpty(); });
-                
-    //         lock.unlock(); 
-            
-    //         LogEntry entry;
-    //         while (_log_buffer.dequeue(entry))
-    //         {
-    //             processLogEntry(entry);
-    //         }
-            
-    //         lock.lock(); 
-    //     }
-        
-    //     lock.unlock();
-    //     LogEntry entry;
-    //     while (_log_buffer.dequeue(entry))
-    //     {
-    //         processLogEntry(entry); 
-    //     }
-    // }
 
     void processLogQueue()
     {
