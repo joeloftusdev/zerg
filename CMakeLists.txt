@@ -22,6 +22,32 @@ target_link_libraries(cpp_logger fmt::fmt)
 add_executable(main main.cpp)
 target_link_libraries(main cpp_logger fmt::fmt)
 
+
+add_custom_target(assembly
+    COMMAND ${CMAKE_CXX_COMPILER} 
+            -E 
+            -I${CMAKE_SOURCE_DIR}/include
+            -std=c++17
+            ${CMAKE_SOURCE_DIR}/src/lock_free_queue.cpp > lock_free_queue.ii &&
+    ${CMAKE_CXX_COMPILER} -S 
+            -masm=intel
+            -fverbose-asm
+            -O3
+            -ffreestanding
+            -fno-asynchronous-unwind-tables
+            -fcf-protection=none
+            -fno-dwarf2-cfi-asm
+            -fomit-frame-pointer
+            -fno-exceptions
+            -fno-rtti
+            -fno-unroll-loops
+            -std=c++17
+            lock_free_queue.ii
+            -o ${CMAKE_BINARY_DIR}/lock_free_queue.asm
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    COMMENT "Generating readable assembly for lock_free_queue.cpp"
+)
+
 option(ENABLE_THREAD_SANITIZER "Enable Thread Sanitizer" OFF)
 option(ENABLE_ADDRESS_SANITIZER "Enable Address and Undefined Sanitizers" ON)
 
