@@ -42,7 +42,7 @@
 namespace cpp_logger
 {
 
-enum class Verbosity
+enum class Verbosity : std::uint8_t
 {
     DEBUG_LVL,
     INFO_LVL,
@@ -66,9 +66,9 @@ template <std::size_t MaxFileSize, std::size_t BufferSize = MAX_FILE_SIZE>
 class Logger
 {
 public:
-    explicit Logger(std::string filename, Verbosity logLevel = Verbosity::DEBUG_LVL)
-        : _filename(std::move(filename)), _log_level(logLevel), _stop_logging(false),
-          _log_buffer(BufferSize)
+    explicit Logger(std::string filename, const Verbosity logLevel = Verbosity::DEBUG_LVL)
+        : _filename(std::move(filename)), _log_level(logLevel), _log_buffer(BufferSize),
+          _stop_logging(false)
     {
         openLogFile();
         _logging_thread = std::thread(&Logger::processLogQueue, this);
@@ -93,10 +93,11 @@ public:
     Logger &operator=(const Logger &) = delete;
 
     Logger(Logger &&other) noexcept
-        : _filename(std::move(other._filename)), _logfile(std::move(other._logfile)),
-          _current_size(other._current_size), _log_level(other._log_level),
-          _stop_logging(other._stop_logging.load()), _log_buffer(std::move(other._log_buffer))
+    : _filename(std::move(other._filename)), _logfile(std::move(other._logfile)),
+      _current_size(other._current_size), _log_buffer(std::move(other._log_buffer)),
+      _stop_logging(other._stop_logging.load())
     {
+        _log_level.store(other._log_level.load());
         other._current_size = 0;
         other._stop_logging = true;
     }
@@ -108,9 +109,9 @@ public:
             _filename = std::move(other._filename);
             _logfile = std::move(other._logfile);
             _current_size = other._current_size;
-            _log_level = other._log_level;
-            _stop_logging = other._stop_logging.load();
             _log_buffer = std::move(other._log_buffer);
+            _stop_logging = other._stop_logging.load();
+            _log_level.store(other._log_level.load());
             other._current_size = 0;
             other._stop_logging = true;
         }
@@ -172,7 +173,7 @@ private:
     std::string _filename;
     std::ofstream _logfile;
     std::size_t _current_size{};
-    std::atomic<Verbosity> _log_level;
+    std::atomic<Verbosity> _log_level{};
     LockFreeQueue<LogEntry> _log_buffer;
     std::condition_variable _cv;
     std::thread _logging_thread;
@@ -219,8 +220,8 @@ private:
             
             // process batch without lock
             lock.unlock();
-            for (const auto& entry : batch) {
-                processLogEntry(entry);
+            for (const auto& batch_entry : batch) {
+                processLogEntry(batch_entry);
             }
             lock.lock();
         }
@@ -229,16 +230,15 @@ private:
     void processLogEntry(const LogEntry &entry)
     {
         // format log entry wth fmt
-        std::string log_entry = fmt::format("{} [{}] {}:{} {}",
-        getCurrentTime(), getVerbosityString(entry.level),
-        getFileName(entry.file), entry.line, entry.args);
+        std::string log_entry =
+            fmt::format("{} [{}] {}:{} {}", getCurrentTime(), getVerbosityString(entry.level),
+                        getFileName(entry.file), entry.line, entry.args);
 
-        
         sanitizeString(log_entry);
 
         // Im now protecting file operations with a mutex
         std::lock_guard<std::mutex> lock(_file_mutex);
-        
+
         if (_current_size + log_entry.size() > MaxFileSize)
         {
             rotateLogFile();
@@ -247,10 +247,10 @@ private:
         _current_size += log_entry.size();
     }
 
-    std::string getCurrentTime() const
+    static std::string getCurrentTime()
     {
-        auto now = std::chrono::system_clock::now();
-        auto in_time_t = std::chrono::system_clock::to_time_t(now);
+        const auto now = std::chrono::system_clock::now();
+        const auto in_time_t = std::chrono::system_clock::to_time_t(now);
         std::tm buf{};
         localtime_r(&in_time_t, &buf);
         std::ostringstream stream;
@@ -258,7 +258,7 @@ private:
         return stream.str();
     }
 
-    std::string getVerbosityString(Verbosity level) const
+    static std::string getVerbosityString(const Verbosity level)
     {
         switch (level)
         {
@@ -277,9 +277,9 @@ private:
         }
     }
 
-    std::string getFileName(const std::string &path) const
+    static std::string getFileName(const std::string &path)
     {
-        size_t pos = path.find_last_of("/\\");
+        const size_t pos = path.find_last_of("/\\");
         return (pos == std::string::npos) ? path : path.substr(pos + 1);
     }
 

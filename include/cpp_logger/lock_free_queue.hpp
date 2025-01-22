@@ -57,11 +57,11 @@ class LockFreeQueue {
     struct alignas(CACHE_LINE_SIZE) AlignedIndex {
         std::atomic<size_t> value{0}; 
         std::atomic<size_t> tag{0};  // ABA protection tag increments on every operation
-        std::array<char, CACHE_LINE_SIZE - 2 * sizeof(std::atomic<size_t>)> padding{}; // padding to avoid false sharing
+        std::array<char, CACHE_LINE_SIZE - (2 * sizeof(std::atomic<size_t>))> padding{}; // padding to avoid false sharing
     };
 
 public:
-    explicit LockFreeQueue(size_t capacity) 
+    explicit LockFreeQueue(const size_t capacity)
         : _capacity(nextPowerOf2(capacity)) // round up to next power of 2
         , _mask(_capacity - 1) // mask for fast modulo
         , _buffer(_capacity) // allocate buffer
@@ -73,7 +73,7 @@ public:
 
 
     [[nodiscard]] bool enqueue(T&& item) {  // Move
-        return enqueue_impl(std::forward<T>(item)); 
+        return enqueue_impl(std::move(item));
     }
 
 private:
