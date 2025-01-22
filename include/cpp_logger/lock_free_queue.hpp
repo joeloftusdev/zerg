@@ -32,11 +32,8 @@
 // prefetching
 // __builtin_prefetch tells the compiler to prefetch the data at the address
 #if defined(__GNUC__) || defined(__clang__)
-    #include <xmmintrin.h>
-    // Using static_cast over reinterpret_cast to avoid undefined behavior
-    #define PREFETCH(addr) _mm_prefetch(\
-        static_cast<const volatile char*>(static_cast<const volatile void*>(addr)),\
-        _MM_HINT_T0)
+    #include <xmmintrin.h> // _mm_prefetch
+    #define PREFETCH(addr) _mm_prefetch(reinterpret_cast<const char*>(addr), _MM_HINT_T0)
 #else
     #define PREFETCH(addr)
 #endif
