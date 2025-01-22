@@ -18,8 +18,9 @@ clang-analyzer-*,
 -readability-named-parameter,
 -cert-env33-c,
 -readability-identifier-length,
--google-readability-todo
-'
+-google-readability-todo,
+-cppcoreguidelines-macro-usage'
+
 
 
 WarningsAsErrors: ''

@@ -32,8 +32,11 @@
 // prefetching
 // __builtin_prefetch tells the compiler to prefetch the data at the address
 #if defined(__GNUC__) || defined(__clang__)
-    #include <xmmintrin.h> // _mm_prefetch
-    #define PREFETCH(addr) _mm_prefetch(reinterpret_cast<const char*>(addr), _MM_HINT_T0)
+    #include <xmmintrin.h>
+    // Using static_cast over reinterpret_cast to avoid undefined behavior
+    #define PREFETCH(addr) _mm_prefetch(\
+        static_cast<const volatile char*>(static_cast<const volatile void*>(addr)),\
+        _MM_HINT_T0)
 #else
     #define PREFETCH(addr)
 #endif
@@ -135,7 +138,7 @@ private:
     // This helps keep the instruction cache efficient for the likely case
     // The Full queue check is rare, so we optimize for the non-full case
     // https://youtu.be/BxfT9fiUsZ4?si=-eG1zfxhSkp3qUsI
-        __attribute__((noinline)) bool is_queue_full(const size_t next_head) const {
+        [[nodiscard]]__attribute__((noinline)) bool is_queue_full(const size_t next_head) const {
             // check if queue is full (unlikely)
             return unlikely(next_head == _tail.value.load(std::memory_order_acquire));
         }

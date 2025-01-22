@@ -127,12 +127,10 @@ constexpr void logWithFile(const Verbosity level, const std::string &loggerFile,
 
 // macros are used here to automatically capture __FILE__ and __LINE__ at the call site
 // this ensures that the correct file name and line number are logged
-// NOLINTNEXTLINE is used to suppress clang-tidy warnings about macro usage
 #define cpp_log(level, format, ...)                                                                \
-    cpp_logger::log(level, __FILE__, __LINE__, format, ##__VA_ARGS__) // NOLINT
+    cpp_logger::log(level, __FILE__, __LINE__, format, ##__VA_ARGS__) 
 
-// NOLINTNEXTLINE is used to suppress clang-tidy warnings about macro usage
 #define cpp_log_with_file(level, file, format, ...)                                                \
-    cpp_logger::logWithFile(level, file, __FILE__, __LINE__, format, ##__VA_ARGS__) // NOLINT
+    cpp_logger::logWithFile(level, file, __FILE__, __LINE__, format, ##__VA_ARGS__)
 
 #endif // GLOBAL_LOGGER_HPP
