@@ -139,7 +139,7 @@ public:
             entry.args = {fmt::format(fmt::runtime(format), std::forward<Args>(args)...)};
 
             {
-              //  std::lock_guard<std::mutex> lock(_log_mutex); // lock only for enqueue
+                std::lock_guard<std::mutex> lock(_log_mutex); // lock only for enqueue
 
                 // move log entry to queue. zero-copy transfer of the string data, std::string
                 // is expensive to copy
