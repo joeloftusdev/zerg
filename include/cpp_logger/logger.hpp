@@ -22,22 +22,23 @@
 #ifndef LOGGER_HPP
 #define LOGGER_HPP
 
-#include "constants.hpp"
-#include "lock_free_queue.hpp"
-#include <iostream>
-#include <fstream>
-#include <string>
-#include <chrono>
-#include <ctime>
-#include <iomanip>
+#include "constants.hpp" // MAX_FILE_SIZE, DEFAULT_BUFFER_SIZE
+#include "lock_free_queue.hpp" // LockFreeQueue
+#include <iostream> // std::cout, std::cerr
+#include <fstream> // std::ofstream
+#include <string> // std::string
+#include <chrono> // std::chrono::system_clock
+#include <ctime> // std::localtime_r
+#include <iomanip> // std::put_time
 
-#include <fmt/core.h>
-#include <fmt/ostream.h>
-#include <thread>
-#include <condition_variable>
-#include <atomic>
-#include <vector>
-#include <array>
+#include <fmt/core.h> // fmt::format
+#include <fmt/ostream.h> // fmt::ostream_formatter
+#include <thread> // std::thread
+#include <condition_variable> // std::condition_variable
+#include <atomic> // std::atomic, std::memory_order_*
+#include <vector> // std::vector
+#include <array> // std::array
+#include "macros.hpp" // PREFETCH, likely, unlikely
 
 namespace cpp_logger
 {
@@ -126,7 +127,8 @@ public:
     template <typename... Args>
     void log(Verbosity level, const char *file, int line, const char *format, Args &&...args)
     {
-        if (level >= _log_level.load(std::memory_order_relaxed))
+        // likely the log level of the message will be greater than or equal to the current log level
+        if (likely(level >= _log_level.load(std::memory_order_relaxed)))
         {
             // format  message outside of the critical section
             LogEntry entry;
@@ -137,7 +139,7 @@ public:
             entry.args = {fmt::format(fmt::runtime(format), std::forward<Args>(args)...)};
 
             {
-                std::lock_guard<std::mutex> lock(_log_mutex); // lock only for enqueue
+              //  std::lock_guard<std::mutex> lock(_log_mutex); // lock only for enqueue
 
                 // move log entry to queue. zero-copy transfer of the string data, std::string
                 // is expensive to copy
@@ -208,16 +210,19 @@ private:
                 return _stop_logging || !_log_buffer.isEmpty(); 
             });
             
-            if (_stop_logging) break;
+            //assuming stopping t he logging is rare
+            if (unlikely(_stop_logging)) break;
                 
             std::vector<LogEntry> batch;
             LogEntry entry;
             
-            // batch of entries under lock
-            while (_log_buffer.dequeue(entry)) {
-                batch.push_back(std::move(entry));
-            }
-            
+        // batch of entries under lock
+        while (likely(_log_buffer.dequeue(entry)))
+        {
+            // prefetch the next entry - minimize cache misses
+            PREFETCH(&_log_buffer);
+            batch.push_back(std::move(entry));
+        }
             // process batch without lock
             lock.unlock();
             for (const auto& batch_entry : batch) {
@@ -229,22 +234,24 @@ private:
 
     void processLogEntry(const LogEntry &entry)
     {
-        // format log entry wth fmt
-        std::string log_entry =
-            fmt::format("{} [{}] {}:{} {}", getCurrentTime(), getVerbosityString(entry.level),
-                        getFileName(entry.file), entry.line, entry.args);
+        fmt::memory_buffer log_entry_buffer; // buffer to hold the formatted log entry
 
-        sanitizeString(log_entry);
+        // now format log entry directly into the buffer no string
+        fmt::format_to(std::back_inserter(log_entry_buffer), "{} [{}] {}:{} {}", getCurrentTime(), getVerbosityString(entry.level),
+                    getFileName(entry.file), entry.line, entry.args);
 
-        // Im now protecting file operations with a mutex
+        sanitizeString(log_entry_buffer);
+
+        // protect file ops with a mutex
         std::lock_guard<std::mutex> lock(_file_mutex);
 
-        if (_current_size + log_entry.size() > MaxFileSize)
+        if (_current_size + log_entry_buffer.size() > MaxFileSize)
         {
             rotateLogFile();
         }
-        _logfile << log_entry << std::endl;
-        _current_size += log_entry.size();
+        _logfile.write(log_entry_buffer.data(), log_entry_buffer.size());
+        _logfile << std::endl;
+        _current_size += log_entry_buffer.size();
     }
 
     static std::string getCurrentTime()
@@ -283,11 +290,13 @@ private:
         return (pos == std::string::npos) ? path : path.substr(pos + 1);
     }
 
-    void sanitizeString(std::string &str)
+    void sanitizeString(fmt::memory_buffer &buffer)
     {
-        str.erase(std::remove_if(str.begin(), str.end(),
-                                 [](unsigned char c) { return std::isprint(c) == 0; }),
-                  str.end());
+        //remove non-printable characters from the buffer
+        auto it = std::remove_if(buffer.begin(), buffer.end(),
+                                [](unsigned char c) { return std::isprint(c) == 0; });
+        // resize to remove the unwanted characters
+        buffer.resize(it - buffer.begin());
     }
 };
 
