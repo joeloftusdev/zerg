@@ -74,8 +74,10 @@ private:
             }
             size_t idx = head & _mask;
             size_t turn = head / _capacity;
+
+            PREFETCH(&_slots[idx].turn);
             // Wait until slot.turn == 2*turn (slot empty)
-            if (_slots[idx].turn.load(std::memory_order_acquire) != 2 * turn) {
+            if (unlikely(_slots[idx].turn.load(std::memory_order_acquire) != 2 * turn)) {
                 return false;
             }
             if (_head.value.compare_exchange_weak(
@@ -99,7 +101,8 @@ public:
             size_t idx = tail & _mask;
             size_t turn = tail / _capacity;
             // Wait until slot.turn == 2*turn + 1 (meaning full)
-            if (_slots[idx].turn.load(std::memory_order_acquire) != 2 * turn + 1) {
+            PREFETCH(&_slots[idx].turn);
+             if (unlikely(_slots[idx].turn.load(std::memory_order_acquire) != 2 * turn + 1)) {
                 // slots not ready
                 return false;
             }
