@@ -55,7 +55,7 @@ enum class Verbosity : std::uint8_t
 /*
  * Logger Class Features:
  * 1. Asynchronous Logging: Background thread processes entries for improved performance @processLogQueue
- * 2. Lock-Free Queue: Thread-safe queue with SPSC optimization for efficient passing of log entries @_log_buffer
+ * 2. Lock-Free Queue: Thread-safe queue with MPMC for efficient passing of log entries @_log_buffer
  * 3. Event-Driven: Uses condition variable for immediate notification of new entries @_cv
  * 4. Batched Processing: Groups log entries to reduce I/O operations and lock contention
  * 5. Safe Shutdown: Ensures all pending logs are written before destruction @sync
@@ -139,7 +139,7 @@ public:
             entry.args = {fmt::format(fmt::runtime(format), std::forward<Args>(args)...)};
 
             {
-                std::lock_guard<std::mutex> lock(_log_mutex); // lock only for enqueue
+                //std::lock_guard<std::mutex> lock(_log_mutex); // lock only for enqueue
 
                 // move log entry to queue. zero-copy transfer of the string data, std::string
                 // is expensive to copy

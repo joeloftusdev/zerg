@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 
-#ifndef LOCK_FREE_QUEUE_HPP
+#ifndef LOCK_FREE_QUEUE_HPP // MPMC lock-free queue
 #define LOCK_FREE_QUEUE_HPP
 
 #include <atomic> // std::atomic, std::memory_order_*
@@ -38,11 +38,19 @@ class LockFreeQueue {
         std::array<char, CACHE_LINE_SIZE - (2 * sizeof(std::atomic<size_t>))> padding{}; // padding to avoid false sharing
     };
 
+struct Slot {
+
+    alignas(CACHE_LINE_SIZE) std::atomic<size_t> turn{0};
+    // "storage' is a raw (untyped) buffer allocated with proper size and alignment for T.
+    // the object of type T is constructed in-place in this storage when enqueued.
+    typename std::aligned_storage<sizeof(T), alignof(T)>::type storage;
+};
+
 public:
     explicit LockFreeQueue(const size_t capacity)
         : _capacity(nextPowerOf2(capacity)) // round up to next power of 2
         , _mask(_capacity - 1) // mask for fast modulo
-        , _buffer(_capacity) // allocate buffer
+        , _slots(_capacity) // allocate slots
     {}
 
     [[nodiscard]] bool enqueue(const T& item) { // copy
@@ -57,39 +65,58 @@ public:
 private:
     template<typename U>
     [[nodiscard]] bool enqueue_impl(U&& item) {
-        const size_t current_head = _head.value.load(std::memory_order_relaxed); 
-        const size_t next_head = (current_head + 1) & _mask; 
-
-        // prefetch next write location to minimize cache misses
-        PREFETCH(&_buffer[(next_head + 1) & _mask]);
-        
-        if (is_queue_full(next_head)) { 
-            return false;
+        for (;;) {
+            size_t head = _head.value.load(std::memory_order_relaxed);
+            size_t tail = _tail.value.load(std::memory_order_acquire);
+            // Queue is full if the number of enqueued items equals (_capacity - 1)
+            if ((head - tail) >= (_capacity - 1)) {
+                return false;
+            }
+            size_t idx = head & _mask;
+            size_t turn = head / _capacity;
+            // Wait until slot.turn == 2*turn (slot empty)
+            if (_slots[idx].turn.load(std::memory_order_acquire) != 2 * turn) {
+                return false;
+            }
+            if (_head.value.compare_exchange_weak(
+                    head, head + 1,
+                    std::memory_order_acq_rel,
+                    std::memory_order_relaxed))
+            {
+                // construct item in slo t
+                new (&_slots[idx].storage) T(std::forward<U>(item));
+                // Mark slot as full
+                _slots[idx].turn.store(2 * turn + 1, std::memory_order_release);
+                return true;
+            }
         }
-
-
-        _buffer[current_head] = std::forward<U>(item); 
-        _head.value.store(next_head, std::memory_order_release); 
-        _head.tag.fetch_add(1, std::memory_order_release); // increment ABA protection tag
-        return true;
     }
 
 public:
     [[nodiscard]] bool dequeue(T& item) {
-        const size_t current_tail = _tail.value.load(std::memory_order_relaxed); 
-        
-        // prefetch next read location to minimize cache misses
-        PREFETCH(&_buffer[(current_tail + 1) & _mask]);
-        
-        // check if queue is empty(likely)
-        if (likely(current_tail == _head.value.load(std::memory_order_acquire))) { 
-            return false;
+        for (;;) {
+            size_t tail = _tail.value.load(std::memory_order_relaxed);
+            size_t idx = tail & _mask;
+            size_t turn = tail / _capacity;
+            // Wait until slot.turn == 2*turn + 1 (meaning full)
+            if (_slots[idx].turn.load(std::memory_order_acquire) != 2 * turn + 1) {
+                // slots not ready
+                return false;
+            }
+            if (_tail.value.compare_exchange_weak(
+                    tail, tail + 1,
+                    std::memory_order_acq_rel,
+                    std::memory_order_relaxed))
+            {
+                // moving out the stored item
+                T* ptr = reinterpret_cast<T*>(&_slots[idx].storage);
+                item = std::move(*ptr);
+                ptr->~T();
+                // mark the slot empty
+                _slots[idx].turn.store(2 * (turn + 1), std::memory_order_release);
+                return true;
+            }
         }
-
-        item = _buffer[current_tail];
-        _tail.value.store((current_tail + 1) & _mask, std::memory_order_release);
-        _tail.tag.fetch_add(1, std::memory_order_release);
-        return true;
     }
 
     [[nodiscard]] size_t capacity() const { return _capacity; } // get capacity of queue
@@ -113,9 +140,13 @@ private:
     // This helps keep the instruction cache efficient for the likely case
     // The Full queue check is rare, so we optimize for the non-full case
     // https://youtu.be/BxfT9fiUsZ4?si=-eG1zfxhSkp3qUsI
+    // Reserve one slot so the queue appears "full" when one slot remains
         [[nodiscard]]__attribute__((noinline)) bool is_queue_full(const size_t next_head) const {
-            // check if queue is full (unlikely)
-            return unlikely(next_head == _tail.value.load(std::memory_order_acquire));
+            // compare "next_head" with one slot behind the tail:
+            // i.e. treat the queue as if it has _capacity - 1 usable slots.
+            // So if next_head == _tail.value - 1 (modulo mask), it's "full."
+            const size_t tail_val = _tail.value.load(std::memory_order_acquire);
+            return unlikely(next_head & _mask) == ((tail_val - 1) & _mask);
         }
     #else
         bool is_queue_full(const size_t next_head) const {
@@ -138,9 +169,11 @@ private:
 
     const size_t _capacity; // total capacity of the queue(powers of 2)
     const size_t _mask; // bitmask for index wrapping
-    std::vector<T> _buffer; // circular buffer storage
     AlignedIndex _head{};  // producer writes
     AlignedIndex _tail{};  // consumer reads
+    std::vector<Slot> _slots; // slots for storing items
 };
 
 #endif // LOCK_FREE_QUEUE_HPP
+
+// MPMC lock-free queue
