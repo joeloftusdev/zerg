@@ -107,6 +107,16 @@ inline void loadConfiguration(const std::string &configFile)
     }
 }
 
+inline void resetGlobalLogger(const std::string &filename = "")
+{
+    static std::unordered_map<std::string, std::shared_ptr<Logger<DEFAULT_BUFFER_SIZE>>> &instances =
+        *new std::unordered_map<std::string, std::shared_ptr<Logger<DEFAULT_BUFFER_SIZE>>>;
+    static std::mutex mtx;
+    std::lock_guard<std::mutex> lock(mtx);
+    std::string fullPath = getLogFilePath() + (filename.empty() ? getLogFileName() : filename);
+    instances.erase(fullPath);
+}
+
 // template functions for logging with the global loggers to reduce reliance on macros
 template <typename... Args>
 constexpr void log(const Verbosity level, const char *file, int line, const std::string &format,

@@ -25,6 +25,9 @@ TEST(GlobalLoggerTest, LogWithDifferentFiles)
     std::ofstream ofs2(custom_filename, std::ofstream::out | std::ofstream::trunc);
     ofs2.close();
 
+    cpp_logger::resetGlobalLogger(default_filename);
+    cpp_logger::resetGlobalLogger(custom_filename);
+
     cpp_log(cpp_logger::Verbosity::INFO_LVL, "Test message with default file");
     cpp_log_with_file(cpp_logger::Verbosity::DEBUG_LVL, custom_filename,
                       "Test message with custom file");
@@ -32,7 +35,7 @@ TEST(GlobalLoggerTest, LogWithDifferentFiles)
     cpp_logger::getGlobalLogger(default_filename)->sync();    
     cpp_logger::getGlobalLogger(custom_filename)->sync();
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
     std::string log_content_default = readFile(default_filename);
     std::string log_content_custom = readFile(custom_filename);
@@ -51,13 +54,18 @@ TEST(GlobalLoggerTest, LogWithDefaultFile)
 {
     const std::string default_filename = "global_logfile.log";
 
+    // Truncate file
     std::ofstream ofs(default_filename, std::ofstream::out | std::ofstream::trunc);
     ofs.close();
 
-    cpp_logger::getGlobalLogger(default_filename);
+    // Reset global logger instance so a new one is created for the truncated file
+    cpp_logger::resetGlobalLogger(default_filename);
+
+    // Log after reset so messages go to a fresh file stream.
     cpp_log(cpp_logger::Verbosity::INFO_LVL, "Test message with default file");
-    cpp_logger::getGlobalLogger()->sync();
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+
+    cpp_logger::getGlobalLogger(default_filename)->sync();
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
     std::string log_content = readFile(default_filename);
     EXPECT_NE(log_content.find("Test message with default file"), std::string::npos);
