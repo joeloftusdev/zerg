@@ -24,10 +24,11 @@
 
 #include "constants.hpp" // MAX_FILE_SIZE, DEFAULT_BUFFER_SIZE
 #include "lock_free_queue.hpp" // LockFreeQueue
+#include "backend/file_log_backend.hpp" // FileLogBackend
 #include <iostream> // std::cout, std::cerr
 #include <fstream> // std::ofstream
 #include <string> // std::string
-#include <chrono> // std::chrono::system_clock
+#include <time.h>   // for clock_gettime, timespec
 #include <ctime> // std::localtime_r
 #include <iomanip> // std::put_time
 
@@ -67,11 +68,15 @@ template <std::size_t MaxFileSize, std::size_t BufferSize = MAX_FILE_SIZE>
 class Logger
 {
 public:
-    explicit Logger(std::string filename, const Verbosity logLevel = Verbosity::DEBUG_LVL)
+    explicit Logger(std::string filename, const Verbosity logLevel = Verbosity::DEBUG_LVL, std::unique_ptr<ILogBackend> backend = nullptr )
         : _filename(std::move(filename)), _log_level(logLevel), _log_buffer(BufferSize),
           _stop_logging(false)
     {
-        openLogFile();
+        if (!backend)
+        {
+            backend = std::make_unique<FileLogBackend>(_filename);
+        }
+        _backend = std::move(backend);
         _logging_thread = std::thread(&Logger::processLogQueue, this);
     }
 
@@ -84,17 +89,13 @@ public:
         {
             _logging_thread.join();
         }
-        if (_logfile.is_open())
-        {
-            _logfile.close();
-        }
     }
 
     Logger(const Logger &) = delete;
     Logger &operator=(const Logger &) = delete;
 
     Logger(Logger &&other) noexcept
-    : _filename(std::move(other._filename)), _logfile(std::move(other._logfile)),
+    : _filename(std::move(other._filename)), _backend(std::move(other._backend)),
       _current_size(other._current_size), _log_buffer(std::move(other._log_buffer)),
       _stop_logging(other._stop_logging.load())
     {
@@ -108,7 +109,7 @@ public:
         if (this != &other)
         {
             _filename = std::move(other._filename);
-            _logfile = std::move(other._logfile);
+            _backend = std::move(other._backend);
             _current_size = other._current_size;
             _log_buffer = std::move(other._log_buffer);
             _stop_logging = other._stop_logging.load();
@@ -139,8 +140,6 @@ public:
             entry.args = {fmt::format(fmt::runtime(format), std::forward<Args>(args)...)};
 
             {
-                //std::lock_guard<std::mutex> lock(_log_mutex); // lock only for enqueue
-
                 // move log entry to queue. zero-copy transfer of the string data, std::string
                 // is expensive to copy
                 if (_log_buffer.enqueue(std::move(entry))) 
@@ -159,7 +158,7 @@ public:
             processLogEntry(entry);
         }
         std::lock_guard<std::mutex> lock(_file_mutex);
-        _logfile.flush();
+        _backend->flush();
     }
 
 private:
@@ -173,7 +172,7 @@ private:
     };
 
     std::string _filename;
-    std::ofstream _logfile;
+    std::unique_ptr<ILogBackend> _backend;
     std::size_t _current_size{};
     std::atomic<Verbosity> _log_level{};
     LockFreeQueue<LogEntry> _log_buffer;
@@ -183,21 +182,14 @@ private:
     std::mutex _log_mutex;
     mutable std::mutex _file_mutex;
 
-    void openLogFile()
-    {
-        _logfile.open(_filename, std::ios::out | std::ios::app);
-        _current_size = _logfile.tellp();
-    }
-
+    /* TODO: implement log rotation in backend not here */ 
     void rotateLogFile()
     {
-        if (_logfile.is_open())
-        {
-            _logfile.close();
-        }
-        _logfile.open(_filename, std::ios::out | std::ios::trunc);
+        // 
+        _backend = std::make_unique<FileLogBackend>(_filename);
         _current_size = 0;
     }
+    /* TODO: implement log rotation in backend not here */
 
     void processLogQueue()
     {
@@ -235,7 +227,6 @@ private:
     void processLogEntry(const LogEntry &entry)
     {
         fmt::memory_buffer log_entry_buffer; // buffer to hold the formatted log entry
-
         // now format log entry directly into the buffer no string
         fmt::format_to(std::back_inserter(log_entry_buffer), "{} [{}] {}:{} {}", getCurrentTime(), getVerbosityString(entry.level),
                     getFileName(entry.file), entry.line, entry.args);
@@ -249,20 +240,24 @@ private:
         {
             rotateLogFile();
         }
-        _logfile.write(log_entry_buffer.data(), log_entry_buffer.size());
-        _logfile << std::endl;
+        _backend->write(log_entry_buffer.data(), static_cast<std::streamsize>(log_entry_buffer.size()));
+        _backend->writeNewline();
         _current_size += log_entry_buffer.size();
     }
 
     static std::string getCurrentTime()
     {
-        const auto now = std::chrono::system_clock::now();
-        const auto in_time_t = std::chrono::system_clock::to_time_t(now);
-        std::tm buf{};
-        localtime_r(&in_time_t, &buf);
-        std::ostringstream stream;
-        stream << std::put_time(&buf, "%Y-%m-%d %X");
-        return stream.str();
+        struct timespec ts;
+        // Using clock_gettime w/ CLOCK_REALTIME_COARSE (linux) for a faster timestamp
+        // https://www.man7.org/linux/man-pages/man3/clock_gettime.3.html
+        clock_gettime(CLOCK_REALTIME_COARSE, &ts);
+        std::tm tm_time{};
+        localtime_r(&ts.tv_sec, &tm_time);
+        char buffer[32];
+        // std::strftime to format the time into the fixed-size buffer. 
+        // Reduced allocations I think?
+        std::strftime(buffer, sizeof(buffer), "%Y-%m-%d %X", &tm_time);
+        return buffer;
     }
 
     static std::string getVerbosityString(const Verbosity level)
