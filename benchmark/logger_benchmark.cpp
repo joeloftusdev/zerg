@@ -44,6 +44,7 @@ namespace
     }
 }
 
+
 #define LOG_BENCH(NAME, X, MSGSIZE)                                         \
     void NAME(benchmark::State& state)                                      \
     {                                                                       \

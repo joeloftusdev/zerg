@@ -79,5 +79,6 @@ endif()
 include(cpplogger_gtests)
 
 if(BUILD_BENCHMARKS)
+    add_definitions(-DBENCHMARK_MODE)
     include(benchmark)
 endif()

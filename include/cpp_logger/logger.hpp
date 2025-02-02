@@ -150,6 +150,10 @@ public:
         }
     }
 
+//faster sync() for benchmarks versus a strict one for tests.
+// TODO - MOVE THIS INTO A HELPER CLASS
+#ifdef BENCHMARK_MODE
+    // Fast sync
     void sync()
     {
         LogEntry entry;
@@ -159,6 +163,55 @@ public:
         }
         std::lock_guard<std::mutex> lock(_file_mutex);
         _backend->flush();
+    }
+
+#else
+    void sync()
+    {
+        LogEntry entry;
+        const auto stable_duration = std::chrono::milliseconds(50);
+        auto start_stable = std::chrono::steady_clock::now();
+
+        while (true)
+        {
+            bool processed = false;
+            while (_log_buffer.dequeue(entry))
+            {
+                processLogEntry(entry);
+                processed = true;
+            }
+            {
+                std::lock_guard<std::mutex> lock(_file_mutex);
+                _backend->flush();
+            }
+            if (processed)
+            {
+                start_stable = std::chrono::steady_clock::now();
+            }
+            else
+            {
+                if (std::chrono::steady_clock::now() - start_stable >= stable_duration)
+                    break;
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        }
+        {
+            std::lock_guard<std::mutex> lock(_empty_mutex);
+            _empty_cv.notify_all();
+        }
+    }
+#endif
+
+    void waitUntilEmpty()
+    {
+        const auto timeout = std::chrono::milliseconds(500);
+        auto start = std::chrono::steady_clock::now();
+        while (!_log_buffer.isEmpty())
+        {
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+            if (std::chrono::steady_clock::now() - start > timeout)
+                break;
+        }
     }
 
 private:
@@ -181,6 +234,8 @@ private:
     std::atomic<bool> _stop_logging;
     std::mutex _log_mutex;
     mutable std::mutex _file_mutex;
+    std::condition_variable _empty_cv;
+    std::mutex _empty_mutex;
 
     /* TODO: implement log rotation in backend not here */ 
     void rotateLogFile()
