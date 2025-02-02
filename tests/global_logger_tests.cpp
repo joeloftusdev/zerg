@@ -14,6 +14,8 @@ void logMessages(const std::string &filename, int thread_id)
         cpp_log_with_file(cpp_logger::Verbosity::INFO_LVL, filename,
                           "Thread {}, message {}",
                           thread_id, i);
+        std::this_thread::sleep_for(
+        std::chrono::milliseconds(10)); // todo update this
     }
 }
 
