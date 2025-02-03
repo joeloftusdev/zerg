@@ -3,41 +3,48 @@
 #include <thread>
 #include <vector>
 
-class LockFreeQueueTest : public ::testing::Test {
-protected:
+class LockFreeQueueTest : public ::testing::Test
+{
+  protected:
     static constexpr size_t DEFAULT_CAPACITY = 16;
     LockFreeQueue<int> queue{DEFAULT_CAPACITY};
 };
 
 // basic Ops
-TEST_F(LockFreeQueueTest, EnqueueDequeueBasic) {
+TEST_F(LockFreeQueueTest, EnqueueDequeueBasic)
+{
     EXPECT_TRUE(queue.enqueue(42));
     int value;
     EXPECT_TRUE(queue.dequeue(value));
     EXPECT_EQ(value, 42);
 }
 
-TEST_F(LockFreeQueueTest, EmptyQueueBehavior) {
+TEST_F(LockFreeQueueTest, EmptyQueueBehavior)
+{
     int value;
     EXPECT_TRUE(queue.isEmpty());
     EXPECT_FALSE(queue.dequeue(value));
 }
 
-TEST_F(LockFreeQueueTest, CapacityRounding) {
-    LockFreeQueue<int> q1{15};  
-    LockFreeQueue<int> q2{17}; 
+TEST_F(LockFreeQueueTest, CapacityRounding)
+{
+    LockFreeQueue<int> q1{15};
+    LockFreeQueue<int> q2{17};
     EXPECT_EQ(q1.capacity(), 16);
     EXPECT_EQ(q2.capacity(), 32);
 }
 
-TEST_F(LockFreeQueueTest, FullQueueBehavior) {
-    for (size_t i = 0; i < DEFAULT_CAPACITY - 1; ++i) {
+TEST_F(LockFreeQueueTest, FullQueueBehavior)
+{
+    for (size_t i = 0; i < DEFAULT_CAPACITY - 1; ++i)
+    {
         EXPECT_TRUE(queue.enqueue(i));
     }
     EXPECT_FALSE(queue.enqueue(42));
 }
 
-TEST_F(LockFreeQueueTest, ConcurrentEnqueueDequeue) {
+TEST_F(LockFreeQueueTest, ConcurrentEnqueueDequeue)
+{
     static constexpr size_t NUM_OPERATIONS = 10000;
     std::atomic<bool> start{false};
     std::atomic<size_t> successful_enqueues{0};
@@ -45,9 +52,14 @@ TEST_F(LockFreeQueueTest, ConcurrentEnqueueDequeue) {
     std::atomic<bool> producer_done{false};
 
     std::thread producer([&]() {
-        while (!start) { std::this_thread::yield(); }
-        for (size_t i = 0; i < NUM_OPERATIONS; ++i) {
-            if (queue.enqueue(i)) {
+        while (!start)
+        {
+            std::this_thread::yield();
+        }
+        for (size_t i = 0; i < NUM_OPERATIONS; ++i)
+        {
+            if (queue.enqueue(i))
+            {
                 successful_enqueues++;
             }
         }
@@ -55,12 +67,19 @@ TEST_F(LockFreeQueueTest, ConcurrentEnqueueDequeue) {
     });
 
     std::thread consumer([&]() {
-        while (!start) { std::this_thread::yield(); }
+        while (!start)
+        {
+            std::this_thread::yield();
+        }
         int value;
-        while (!producer_done || !queue.isEmpty()) {
-            if (queue.dequeue(value)) {
+        while (!producer_done || !queue.isEmpty())
+        {
+            if (queue.dequeue(value))
+            {
                 successful_dequeues++;
-            } else {
+            }
+            else
+            {
                 std::this_thread::yield();
             }
         }
@@ -74,16 +93,19 @@ TEST_F(LockFreeQueueTest, ConcurrentEnqueueDequeue) {
     EXPECT_TRUE(queue.isEmpty());
 }
 
-TEST_F(LockFreeQueueTest, StressTest) {
+TEST_F(LockFreeQueueTest, StressTest)
+{
     static constexpr size_t NUM_ITEMS = 100000;
     std::vector<int> produced(NUM_ITEMS);
     std::vector<int> consumed;
     consumed.reserve(NUM_ITEMS);
-    
+
     std::thread producer([&]() {
-        for (size_t i = 0; i < NUM_ITEMS; ++i) {
+        for (size_t i = 0; i < NUM_ITEMS; ++i)
+        {
             produced[i] = i;
-            while (!queue.enqueue(i)) {
+            while (!queue.enqueue(i))
+            {
                 std::this_thread::yield();
             }
         }
@@ -92,8 +114,10 @@ TEST_F(LockFreeQueueTest, StressTest) {
     std::thread consumer([&]() {
         int value;
         size_t count = 0;
-        while (count < NUM_ITEMS) {
-            if (queue.dequeue(value)) {
+        while (count < NUM_ITEMS)
+        {
+            if (queue.dequeue(value))
+            {
                 consumed.push_back(value);
                 count++;
             }
@@ -104,7 +128,8 @@ TEST_F(LockFreeQueueTest, StressTest) {
     consumer.join();
 
     EXPECT_EQ(produced.size(), consumed.size());
-    for (size_t i = 0; i < NUM_ITEMS; ++i) {
+    for (size_t i = 0; i < NUM_ITEMS; ++i)
+    {
         EXPECT_EQ(produced[i], consumed[i]);
     }
 }

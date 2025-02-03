@@ -11,11 +11,9 @@ void logMessages(const std::string &filename, int thread_id)
 {
     for (int i = 0; i < 100; ++i)
     {
-        cpp_log_with_file(cpp_logger::Verbosity::INFO_LVL, filename,
-                          "Thread {}, message {}",
+        cpp_log_with_file(cpp_logger::Verbosity::INFO_LVL, filename, "Thread {}, message {}",
                           thread_id, i);
-        std::this_thread::sleep_for(
-        std::chrono::milliseconds(10)); // todo update this
+        std::this_thread::sleep_for(std::chrono::milliseconds(10)); // todo update this
     }
 }
 
@@ -23,7 +21,7 @@ TEST(GlobalLoggerTest, LogWithDifferentFiles)
 {
     const std::string default_filename = "global_logfile.log";
     const std::string custom_filename = "custom_logfile.log";
-    
+
     {
         std::ofstream ofs1(default_filename, std::ofstream::out | std::ofstream::trunc);
         ofs1.close();
@@ -38,7 +36,7 @@ TEST(GlobalLoggerTest, LogWithDifferentFiles)
     cpp_log_with_file(cpp_logger::Verbosity::DEBUG_LVL, custom_filename,
                       "Test message with custom file");
 
-    cpp_logger::getGlobalLogger(default_filename)->sync();    
+    cpp_logger::getGlobalLogger(default_filename)->sync();
     cpp_logger::getGlobalLogger(default_filename)->waitUntilEmpty();
     cpp_logger::getGlobalLogger(custom_filename)->sync();
     cpp_logger::getGlobalLogger(custom_filename)->waitUntilEmpty();

@@ -18,12 +18,11 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-
 #ifndef GLOBAL_LOGGER_HPP
 #define GLOBAL_LOGGER_HPP
 
 #include "logger.hpp"
-#include "constants.hpp" 
+#include "constants.hpp"
 #include <string>        // std::string
 #include <memory>        // std::shared_ptr
 #include <mutex>         // std::mutex, std::lock_guard
@@ -63,7 +62,10 @@ getGlobalLogger(const std::string &filename = "")
     return instances[fullPath];
 }
 
-inline void setGlobalLoggerVerbosity(const Verbosity level) { getGlobalLogger()->setLogLevel(level); }
+inline void setGlobalLoggerVerbosity(const Verbosity level)
+{
+    getGlobalLogger()->setLogLevel(level);
+}
 
 inline Verbosity stringToVerbosity(const std::string &level)
 {
@@ -109,8 +111,9 @@ inline void loadConfiguration(const std::string &configFile)
 
 inline void resetGlobalLogger(const std::string &filename = "")
 {
-    static std::unordered_map<std::string, std::shared_ptr<Logger<DEFAULT_BUFFER_SIZE>>> &instances =
-        *new std::unordered_map<std::string, std::shared_ptr<Logger<DEFAULT_BUFFER_SIZE>>>;
+    static std::unordered_map<std::string, std::shared_ptr<Logger<DEFAULT_BUFFER_SIZE>>>
+        &instances =
+            *new std::unordered_map<std::string, std::shared_ptr<Logger<DEFAULT_BUFFER_SIZE>>>;
     static std::mutex mtx;
     std::lock_guard<std::mutex> lock(mtx);
     std::string fullPath = getLogFilePath() + (filename.empty() ? getLogFileName() : filename);
@@ -138,7 +141,7 @@ constexpr void logWithFile(const Verbosity level, const std::string &loggerFile,
 // macros are used here to automatically capture __FILE__ and __LINE__ at the call site
 // this ensures that the correct file name and line number are logged
 #define cpp_log(level, format, ...)                                                                \
-    cpp_logger::log(level, __FILE__, __LINE__, format, ##__VA_ARGS__) 
+    cpp_logger::log(level, __FILE__, __LINE__, format, ##__VA_ARGS__)
 
 #define cpp_log_with_file(level, file, format, ...)                                                \
     cpp_logger::logWithFile(level, file, __FILE__, __LINE__, format, ##__VA_ARGS__)

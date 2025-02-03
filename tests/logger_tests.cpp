@@ -37,6 +37,7 @@ TEST(LoggerTest, LogMultipleMessages)
     EXPECT_NE(log_content.find("logger_tests.cpp"), std::string::npos);
 }
 
+// Make this actually test the rotation
 TEST(LoggerTest, RotateLogFile)
 {
     const std::string filename = "test_log.log";

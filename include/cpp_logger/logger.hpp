@@ -18,44 +18,37 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-
 #ifndef LOGGER_HPP
 #define LOGGER_HPP
 
-#include "constants.hpp" // MAX_FILE_SIZE, DEFAULT_BUFFER_SIZE
-#include "lock_free_queue.hpp" // LockFreeQueue
+#include "constants.hpp"                // MAX_FILE_SIZE, DEFAULT_BUFFER_SIZE
+#include "lock_free_queue.hpp"          // LockFreeQueue
 #include "backend/file_log_backend.hpp" // FileLogBackend
-#include <iostream> // std::cout, std::cerr
-#include <fstream> // std::ofstream
-#include <string> // std::string
-#include <time.h>   // for clock_gettime, timespec
-#include <ctime> // std::localtime_r
-#include <iomanip> // std::put_time
+#include "verbosity.hpp"                // Verbosity
+#include "log_sync.hpp"                 // syncLogs, waitUntilEmpty
 
-#include <fmt/core.h> // fmt::format
-#include <fmt/ostream.h> // fmt::ostream_formatter
-#include <thread> // std::thread
+#include <iostream>           // std::cout, std::cerr
+#include <fstream>            // std::ofstream
+#include <string>             // std::string
+#include <time.h>             // for clock_gettime, timespec
+#include <ctime>              // std::localtime_r
+#include <iomanip>            // std::put_time
+#include <fmt/core.h>         // fmt::format
+#include <fmt/ostream.h>      // fmt::ostream_formatter
+#include <thread>             // std::thread
 #include <condition_variable> // std::condition_variable
-#include <atomic> // std::atomic, std::memory_order_*
-#include <vector> // std::vector
-#include <array> // std::array
-#include "macros.hpp" // PREFETCH, likely, unlikely
+#include <atomic>             // std::atomic, std::memory_order_*
+#include <vector>             // std::vector
+#include <array>              // std::array
+#include "macros.hpp"         // PREFETCH, likely, unlikely
 
 namespace cpp_logger
 {
 
-enum class Verbosity : std::uint8_t
-{
-    DEBUG_LVL,
-    INFO_LVL,
-    WARN_LVL,
-    ERROR_LVL,
-    FATAL_LVL
-};
-
 /*
  * Logger Class Features:
- * 1. Asynchronous Logging: Background thread processes entries for improved performance @processLogQueue
+ * 1. Asynchronous Logging: Background thread processes entries for improved performance
+ * @processLogQueue
  * 2. Lock-Free Queue: Thread-safe queue with MPMC for efficient passing of log entries @_log_buffer
  * 3. Event-Driven: Uses condition variable for immediate notification of new entries @_cv
  * 4. Batched Processing: Groups log entries to reduce I/O operations and lock contention
@@ -64,157 +57,27 @@ enum class Verbosity : std::uint8_t
  * 7. File Rotation: Automatic log file rotation when size limit reached @rotateLogFile
  */
 
-template <std::size_t MaxFileSize, std::size_t BufferSize = MAX_FILE_SIZE>
-class Logger
+template <std::size_t MaxFileSize, std::size_t BufferSize = MAX_FILE_SIZE> class Logger
 {
-public:
-    explicit Logger(std::string filename, const Verbosity logLevel = Verbosity::DEBUG_LVL, std::unique_ptr<ILogBackend> backend = nullptr )
-        : _filename(std::move(filename)), _log_level(logLevel), _log_buffer(BufferSize),
-          _stop_logging(false)
-    {
-        if (!backend)
-        {
-            backend = std::make_unique<FileLogBackend>(_filename);
-        }
-        _backend = std::move(backend);
-        _logging_thread = std::thread(&Logger::processLogQueue, this);
-    }
-
-    ~Logger()
-    {
-        sync();
-        _stop_logging = true;
-        _cv.notify_all();
-        if (_logging_thread.joinable())
-        {
-            _logging_thread.join();
-        }
-    }
+  public:
+    explicit Logger(std::string filename, const Verbosity logLevel = Verbosity::DEBUG_LVL,
+                    std::unique_ptr<ILogBackend> backend = nullptr);
+    ~Logger();
 
     Logger(const Logger &) = delete;
     Logger &operator=(const Logger &) = delete;
+    Logger(Logger &&other) noexcept;
+    Logger &operator=(Logger &&other) noexcept;
 
-    Logger(Logger &&other) noexcept
-    : _filename(std::move(other._filename)), _backend(std::move(other._backend)),
-      _current_size(other._current_size), _log_buffer(std::move(other._log_buffer)),
-      _stop_logging(other._stop_logging.load())
-    {
-        _log_level.store(other._log_level.load());
-        other._current_size = 0;
-        other._stop_logging = true;
-    }
-
-    Logger &operator=(Logger &&other) noexcept
-    {
-        if (this != &other)
-        {
-            _filename = std::move(other._filename);
-            _backend = std::move(other._backend);
-            _current_size = other._current_size;
-            _log_buffer = std::move(other._log_buffer);
-            _stop_logging = other._stop_logging.load();
-            _log_level.store(other._log_level.load());
-            other._current_size = 0;
-            other._stop_logging = true;
-        }
-        return *this;
-    }
-
-    void setLogLevel(Verbosity level)
-    {
-        _log_level.store(level, std::memory_order_relaxed);
-    }
+    void setLogLevel(Verbosity level);
 
     template <typename... Args>
-    void log(Verbosity level, const char *file, int line, const char *format, Args &&...args)
-    {
-        // likely the log level of the message will be greater than or equal to the current log level
-        if (likely(level >= _log_level.load(std::memory_order_relaxed)))
-        {
-            // format  message outside of the critical section
-            LogEntry entry;
-            entry.level = level;
-            entry.file = file;
-            entry.line = line;
-            entry.format = format;
-            entry.args = {fmt::format(fmt::runtime(format), std::forward<Args>(args)...)};
+    void log(Verbosity level, const char *file, int line, const char *format, Args &&...args);
 
-            {
-                // move log entry to queue. zero-copy transfer of the string data, std::string
-                // is expensive to copy
-                if (_log_buffer.enqueue(std::move(entry))) 
-                {
-                    _cv.notify_one();
-                }
-            }
-        }
-    }
+    void sync();
+    void waitUntilEmpty();
 
-//faster sync() for benchmarks versus a strict one for tests.
-// TODO - MOVE THIS INTO A HELPER CLASS
-#ifdef BENCHMARK_MODE
-    // Fast sync
-    void sync()
-    {
-        LogEntry entry;
-        while (_log_buffer.dequeue(entry))
-        {
-            processLogEntry(entry);
-        }
-        std::lock_guard<std::mutex> lock(_file_mutex);
-        _backend->flush();
-    }
-
-#else
-    void sync()
-    {
-        LogEntry entry;
-        const auto stable_duration = std::chrono::milliseconds(50);
-        auto start_stable = std::chrono::steady_clock::now();
-
-        while (true)
-        {
-            bool processed = false;
-            while (_log_buffer.dequeue(entry))
-            {
-                processLogEntry(entry);
-                processed = true;
-            }
-            {
-                std::lock_guard<std::mutex> lock(_file_mutex);
-                _backend->flush();
-            }
-            if (processed)
-            {
-                start_stable = std::chrono::steady_clock::now();
-            }
-            else
-            {
-                if (std::chrono::steady_clock::now() - start_stable >= stable_duration)
-                    break;
-            }
-            std::this_thread::sleep_for(std::chrono::milliseconds(5));
-        }
-        {
-            std::lock_guard<std::mutex> lock(_empty_mutex);
-            _empty_cv.notify_all();
-        }
-    }
-#endif
-
-    void waitUntilEmpty()
-    {
-        const auto timeout = std::chrono::milliseconds(500);
-        auto start = std::chrono::steady_clock::now();
-        while (!_log_buffer.isEmpty())
-        {
-            std::this_thread::sleep_for(std::chrono::milliseconds(5));
-            if (std::chrono::steady_clock::now() - start > timeout)
-                break;
-        }
-    }
-
-private:
+  private:
     struct LogEntry
     {
         Verbosity level{};
@@ -237,119 +100,16 @@ private:
     std::condition_variable _empty_cv;
     std::mutex _empty_mutex;
 
-    /* TODO: implement log rotation in backend not here */ 
-    void rotateLogFile()
-    {
-        // 
-        _backend = std::make_unique<FileLogBackend>(_filename);
-        _current_size = 0;
-    }
-    /* TODO: implement log rotation in backend not here */
-
-    void processLogQueue()
-    {
-        std::unique_lock<std::mutex> lock(_log_mutex);
-        
-        while (!_stop_logging)
-        {
-            // wait until notified or stopped,  no longer polling
-            _cv.wait(lock, [this] { 
-                return _stop_logging || !_log_buffer.isEmpty(); 
-            });
-            
-            //assuming stopping t he logging is rare
-            if (unlikely(_stop_logging)) break;
-                
-            std::vector<LogEntry> batch;
-            LogEntry entry;
-            
-        // batch of entries under lock
-        while (likely(_log_buffer.dequeue(entry)))
-        {
-            // prefetch the next entry - minimize cache misses
-            PREFETCH(&_log_buffer);
-            batch.push_back(std::move(entry));
-        }
-            // process batch without lock
-            lock.unlock();
-            for (const auto& batch_entry : batch) {
-                processLogEntry(batch_entry);
-            }
-            lock.lock();
-        }
-    }
-
-    void processLogEntry(const LogEntry &entry)
-    {
-        fmt::memory_buffer log_entry_buffer; // buffer to hold the formatted log entry
-        // now format log entry directly into the buffer no string
-        fmt::format_to(std::back_inserter(log_entry_buffer), "{} [{}] {}:{} {}", getCurrentTime(), getVerbosityString(entry.level),
-                    getFileName(entry.file), entry.line, entry.args);
-
-        sanitizeString(log_entry_buffer);
-
-        // protect file ops with a mutex
-        std::lock_guard<std::mutex> lock(_file_mutex);
-
-        if (_current_size + log_entry_buffer.size() > MaxFileSize)
-        {
-            rotateLogFile();
-        }
-        _backend->write(log_entry_buffer.data(), static_cast<std::streamsize>(log_entry_buffer.size()));
-        _backend->writeNewline();
-        _current_size += log_entry_buffer.size();
-    }
-
-    static std::string getCurrentTime()
-    {
-        struct timespec ts;
-        // Using clock_gettime w/ CLOCK_REALTIME_COARSE (linux) for a faster timestamp
-        // https://www.man7.org/linux/man-pages/man3/clock_gettime.3.html
-        clock_gettime(CLOCK_REALTIME_COARSE, &ts);
-        std::tm tm_time{};
-        localtime_r(&ts.tv_sec, &tm_time);
-        char buffer[32];
-        // std::strftime to format the time into the fixed-size buffer. 
-        // Reduced allocations I think?
-        std::strftime(buffer, sizeof(buffer), "%Y-%m-%d %X", &tm_time);
-        return buffer;
-    }
-
-    static std::string getVerbosityString(const Verbosity level)
-    {
-        switch (level)
-        {
-        case Verbosity::DEBUG_LVL:
-            return "DEBUG";
-        case Verbosity::INFO_LVL:
-            return "INFO";
-        case Verbosity::WARN_LVL:
-            return "WARN";
-        case Verbosity::ERROR_LVL:
-            return "ERROR";
-        case Verbosity::FATAL_LVL:
-            return "FATAL";
-        default:
-            return "UNKNOWN";
-        }
-    }
-
-    static std::string getFileName(const std::string &path)
-    {
-        const size_t pos = path.find_last_of("/\\");
-        return (pos == std::string::npos) ? path : path.substr(pos + 1);
-    }
-
-    void sanitizeString(fmt::memory_buffer &buffer)
-    {
-        //remove non-printable characters from the buffer
-        auto it = std::remove_if(buffer.begin(), buffer.end(),
-                                [](unsigned char c) { return std::isprint(c) == 0; });
-        // resize to remove the unwanted characters
-        buffer.resize(it - buffer.begin());
-    }
+    void rotateLogFile();
+    void processLogQueue();
+    void processLogEntry(const LogEntry &entry);
+    static std::string getCurrentTime();
+    static std::string getVerbosityString(const Verbosity level);
+    static std::string getFileName(const std::string &path);
+    void sanitizeString(fmt::memory_buffer &buffer);
 };
 
 } // namespace cpp_logger
 
+#include "logger.tpp"
 #endif // LOGGER_HPP
