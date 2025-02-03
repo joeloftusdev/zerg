@@ -22,6 +22,7 @@
 #define GLOBAL_LOGGER_HPP
 
 #include "logger.hpp"
+#include "backend/console_log_backend.hpp" // ConsoleLogBackend
 #include "constants.hpp"
 #include <string>        // std::string
 #include <memory>        // std::shared_ptr
@@ -61,6 +62,23 @@ getGlobalLogger(const std::string &filename = "")
     }
     return instances[fullPath];
 }
+
+/* Move this into own class*/
+inline std::shared_ptr<Logger<DEFAULT_BUFFER_SIZE>> &getGlobalConsoleLogger()
+{
+    static std::shared_ptr<Logger<DEFAULT_BUFFER_SIZE>> consoleInstance;
+    static std::mutex mtx;
+
+    std::lock_guard<std::mutex> lock(mtx);
+    if (!consoleInstance)
+    {
+        auto consoleBackend = std::make_unique<ConsoleLogBackend>();
+        consoleInstance = std::make_shared<Logger<DEFAULT_BUFFER_SIZE>>(
+            "unused_filename_for_console", Verbosity::DEBUG_LVL, std::move(consoleBackend));
+    }
+    return consoleInstance;
+}
+/* Move this into own class*/
 
 inline void setGlobalLoggerVerbosity(const Verbosity level)
 {
@@ -145,5 +163,11 @@ constexpr void logWithFile(const Verbosity level, const std::string &loggerFile,
 
 #define cpp_log_with_file(level, file, format, ...)                                                \
     cpp_logger::logWithFile(level, file, __FILE__, __LINE__, format, ##__VA_ARGS__)
+
+#define cpp_log_console(level, format, ...)                                                        \
+    ::cpp_logger::getGlobalConsoleLogger()->log(level, __FILE__, __LINE__, format, ##__VA_ARGS__)
+
+// console logger needs to move to own class, this should be renamed file_logger and shared methods
+// should be abstracted into a base class
 
 #endif // GLOBAL_LOGGER_HPP
