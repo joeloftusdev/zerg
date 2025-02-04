@@ -1,35 +1,11 @@
-// Copyright 2025 Joseph A. Loftus
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
+#ifndef FILE_LOGGER_BACKEND_HPP
+#define FILE_LOGGER_BACKEND_HPP
 
-#ifndef GLOBAL_LOGGER_HPP
-#define GLOBAL_LOGGER_HPP
-
-#include "logger.hpp"
-#include "backend/console_log_backend.hpp" // ConsoleLogBackend
-#include "constants.hpp"
-#include <string>        // std::string
-#include <memory>        // std::shared_ptr
-#include <mutex>         // std::mutex, std::lock_guard
-#include <fstream>       // std::ifstream
-#include <sstream>       // std::istringstream
-#include <unordered_map> // std::unordered_map
+//#include "../backend/file_log_backend.hpp"
+#include "../logger.hpp"
+#include "../constants.hpp"
+#include <memory> // std::shared_ptr
+#include <mutex>  // std::mutex, std::lock_guard
 
 namespace zerg
 {
@@ -49,7 +25,7 @@ inline std::string &getLogFilePath()
 inline void setLogFilePath(const std::string &path) { getLogFilePath() = path; }
 
 inline std::shared_ptr<Logger<DEFAULT_BUFFER_SIZE>> &
-getGlobalLogger(const std::string &filename = "")
+getFileLogger(const std::string &filename = "")
 {
     static std::unordered_map<std::string, std::shared_ptr<Logger<DEFAULT_BUFFER_SIZE>>> instances;
     static std::mutex mtx;
@@ -63,26 +39,9 @@ getGlobalLogger(const std::string &filename = "")
     return instances[fullPath];
 }
 
-/* Move this into own class*/
-inline std::shared_ptr<Logger<DEFAULT_BUFFER_SIZE>> &getGlobalConsoleLogger()
-{
-    static std::shared_ptr<Logger<DEFAULT_BUFFER_SIZE>> consoleInstance;
-    static std::mutex mtx;
-
-    std::lock_guard<std::mutex> lock(mtx);
-    if (!consoleInstance)
-    {
-        auto consoleBackend = std::make_unique<ConsoleLogBackend>();
-        consoleInstance = std::make_shared<Logger<DEFAULT_BUFFER_SIZE>>(
-            "unused_filename_for_console", Verbosity::DEBUG_LVL, std::move(consoleBackend));
-    }
-    return consoleInstance;
-}
-/* Move this into own class*/
-
 inline void setGlobalLoggerVerbosity(const Verbosity level)
 {
-    getGlobalLogger()->setLogLevel(level);
+    getFileLogger()->setLogLevel(level);
 }
 
 inline Verbosity stringToVerbosity(const std::string &level)
@@ -127,7 +86,7 @@ inline void loadConfiguration(const std::string &configFile)
     }
 }
 
-inline void resetGlobalLogger(const std::string &filename = "")
+inline void resetFileLogger(const std::string &filename = "")
 {
     static std::unordered_map<std::string, std::shared_ptr<Logger<DEFAULT_BUFFER_SIZE>>>
         &instances =
@@ -143,31 +102,27 @@ template <typename... Args>
 constexpr void log(const Verbosity level, const char *file, int line, const std::string &format,
                    Args &&...args)
 {
-    getGlobalLogger()->log(level, file, line, format.c_str(), std::forward<Args>(args)...);
+    getFileLogger()->log(level, file, line, format.c_str(), std::forward<Args>(args)...);
 }
 
 template <typename... Args>
 constexpr void logWithFile(const Verbosity level, const std::string &loggerFile, const char *file,
                            int line, const std::string &format, Args &&...args)
 {
-    getGlobalLogger(loggerFile)
+    getFileLogger(loggerFile)
         ->log(level, file, line, format.c_str(), std::forward<Args>(args)...);
 }
 
+
+
 } // namespace zerg
 
-// macros are used here to automatically capture __FILE__ and __LINE__ at the call site
-// this ensures that the correct file name and line number are logged
 #define cpp_log(level, format, ...)                                                                \
     zerg::log(level, __FILE__, __LINE__, format, ##__VA_ARGS__)
 
 #define cpp_log_with_file(level, file, format, ...)                                                \
     zerg::logWithFile(level, file, __FILE__, __LINE__, format, ##__VA_ARGS__)
 
-#define cpp_log_console(level, format, ...)                                                        \
-    ::zerg::getGlobalConsoleLogger()->log(level, __FILE__, __LINE__, format, ##__VA_ARGS__)
 
-// console logger needs to move to own class, this should be renamed file_logger and shared methods
-// should be abstracted into a base class
 
-#endif // GLOBAL_LOGGER_HPP
+#endif // FILE_LOGGER_BACKEND_HPP

@@ -1,4 +1,4 @@
-#include "include/zerg/global_logger.hpp"
+#include "include/zerg/global/file_logger.hpp"
 
 //#define LOG(logger, level, format, ...) logger.log(level, __FILE__, __LINE__, format, __VA_ARGS__)
 

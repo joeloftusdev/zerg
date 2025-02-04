@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include "../include/zerg/global_logger.hpp"
+#include "../include/zerg/global/file_logger.hpp"
 #include "test_utils.hpp"
 #include <string>
 #include <thread>
@@ -29,17 +29,17 @@ TEST(GlobalLoggerTest, LogWithDifferentFiles)
         ofs2.close();
     }
 
-    zerg::resetGlobalLogger(default_filename);
-    zerg::resetGlobalLogger(custom_filename);
+    zerg::resetFileLogger(default_filename);
+    zerg::resetFileLogger(custom_filename);
 
     cpp_log(zerg::Verbosity::INFO_LVL, "Test message with default file");
     cpp_log_with_file(zerg::Verbosity::DEBUG_LVL, custom_filename,
                       "Test message with custom file");
 
-    zerg::getGlobalLogger(default_filename)->sync();
-    zerg::getGlobalLogger(default_filename)->waitUntilEmpty();
-    zerg::getGlobalLogger(custom_filename)->sync();
-    zerg::getGlobalLogger(custom_filename)->waitUntilEmpty();
+    zerg::getFileLogger(default_filename)->sync();
+    zerg::getFileLogger(default_filename)->waitUntilEmpty();
+    zerg::getFileLogger(custom_filename)->sync();
+    zerg::getFileLogger(custom_filename)->waitUntilEmpty();
 
     std::string log_content_default = readFile(default_filename);
     std::string log_content_custom = readFile(custom_filename);
@@ -65,13 +65,13 @@ TEST(GlobalLoggerTest, LogWithDefaultFile)
     }
 
     // Reset global logger instance so a new one is created for the truncated file
-    zerg::resetGlobalLogger(default_filename);
+    zerg::resetFileLogger(default_filename);
 
     // Log after reset so messages go to a fresh file stream.
     cpp_log(zerg::Verbosity::INFO_LVL, "Test message with default file");
 
-    zerg::getGlobalLogger(default_filename)->sync();
-    zerg::getGlobalLogger(default_filename)->waitUntilEmpty();
+    zerg::getFileLogger(default_filename)->sync();
+    zerg::getFileLogger(default_filename)->waitUntilEmpty();
 
     std::string log_content = readFile(default_filename);
     EXPECT_NE(log_content.find("Test message with default file"), std::string::npos);
@@ -89,8 +89,8 @@ TEST(GlobalLoggerTest, LogWithCustomFile)
 
     cpp_log_with_file(zerg::Verbosity::INFO_LVL, custom_filename,
                       "Test message with custom file");
-    zerg::getGlobalLogger(custom_filename)->sync();
-    zerg::getGlobalLogger(custom_filename)->waitUntilEmpty();
+    zerg::getFileLogger(custom_filename)->sync();
+    zerg::getFileLogger(custom_filename)->waitUntilEmpty();
 
     std::string log_content = readFile(custom_filename);
     EXPECT_NE(log_content.find("Test message with custom file"), std::string::npos);

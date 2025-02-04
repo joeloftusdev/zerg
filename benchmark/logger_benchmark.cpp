@@ -1,4 +1,4 @@
-#include "../include/zerg/global_logger.hpp"
+#include "../include/zerg/global/file_logger.hpp"
 #include <benchmark/benchmark.h>
 #include <cerrno>
 #include <cstdio>
@@ -48,7 +48,7 @@ int getenv_int(const char *name)
     void NAME(benchmark::State &state)                                                             \
     {                                                                                              \
         zerg::setLogFilePath("/dev/null");                                                   \
-        auto logger = zerg::getGlobalLogger();                                               \
+        auto logger = zerg::getFileLogger();                                               \
                                                                                                    \
         if (const int cpu = getenv_int("PRODUCER_CPU"); cpu != -1)                                 \
             set_thread_attrs(::pthread_self(), cpu);                                               \

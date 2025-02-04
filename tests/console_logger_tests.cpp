@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 #include <thread>
 #include <vector>
-#include "zerg/global_logger.hpp" // for cpp_log_console, getGlobalConsoleLogger
+#include "zerg/global/console_logger.hpp" // for cpp_log_console, getGlobalConsoleLogger
 #include <sstream>
 #include <string>
 
@@ -20,8 +20,8 @@ TEST(ConsoleLoggerTest, BasicConsoleLog)
 
     cpp_log_console(zerg::Verbosity::INFO_LVL, "This is a console log test");
 
-    zerg::getGlobalConsoleLogger()->sync();
-    zerg::getGlobalConsoleLogger()->waitUntilEmpty();
+    zerg::getConsoleLogger()->sync();
+    zerg::getConsoleLogger()->waitUntilEmpty();
     std::string output = testing::internal::GetCapturedStdout();
 
     EXPECT_NE(output.find("This is a console log test"), std::string::npos)
@@ -47,8 +47,8 @@ TEST(ConsoleLoggerTest, ThreadSafety)
         t.join();
     }
 
-    zerg::getGlobalConsoleLogger()->sync();
-    zerg::getGlobalConsoleLogger()->waitUntilEmpty();
+    zerg::getConsoleLogger()->sync();
+    zerg::getConsoleLogger()->waitUntilEmpty();
 
     std::string output = testing::internal::GetCapturedStdout();
 
@@ -77,8 +77,8 @@ TEST(ConsoleLoggerTest, VerbosityLevels)
     cpp_log_console(zerg::Verbosity::ERROR_LVL, "Error message: {}", true);
     cpp_log_console(zerg::Verbosity::FATAL_LVL, "Fatal message: {}", 'F');
 
-    zerg::getGlobalConsoleLogger()->sync();
-    zerg::getGlobalConsoleLogger()->waitUntilEmpty();
+    zerg::getConsoleLogger()->sync();
+    zerg::getConsoleLogger()->waitUntilEmpty();
 
     std::string output = testing::internal::GetCapturedStdout();
     
