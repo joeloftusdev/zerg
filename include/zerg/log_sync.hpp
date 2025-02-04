@@ -29,7 +29,7 @@
 #include "lock_free_queue.hpp"
 #include "backend/ilog_backend.hpp"
 
-namespace cpp_logger
+namespace zerg
 {
 
 template <typename LogEntry>
@@ -94,6 +94,6 @@ template <typename LogEntry> void waitUntilEmpty(LockFreeQueue<LogEntry> &log_bu
     }
 }
 
-} // namespace cpp_logger
+} // namespace zerg
 
 #endif // LOG_SYNCER_HPP

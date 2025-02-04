@@ -18,24 +18,22 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#ifndef ILOG_BACKEND_HPP
-#define ILOG_BACKEND_HPP
+#ifndef VERBOSITY_HPP
+#define VERBOSITY_HPP
 
-#include <ios> // std::streamsize
+#include <cstdint> // std::uint8_t
 
-namespace cpp_logger
+namespace zerg
 {
-
-// Interface for log backends
-// TODO Multiple backends i.e console, network
-class ILogBackend
+enum class Verbosity : std::uint8_t
 {
-  public:
-    virtual ~ILogBackend() = default;
-    virtual void write(const char *data, std::streamsize size) = 0;
-    virtual void writeNewline() = 0;
-    virtual void flush() = 0;
+    DEBUG_LVL,
+    INFO_LVL,
+    WARN_LVL,
+    ERROR_LVL,
+    FATAL_LVL
 };
-} // namespace cpp_logger
 
-#endif // ILOG_BACKEND_HPP
+} // namespace zerg
+
+#endif // VERBOSITY_HPP

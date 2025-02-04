@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include "../include/cpp_logger/logger.hpp"
+#include "../include/zerg/logger.hpp"
 #include "test_utils.hpp"
 #include <string>
 
@@ -8,9 +8,9 @@
 TEST(LoggerTest, LogSingleMessage)
 {
     const std::string filename = "test_log.log";
-    cpp_logger::Logger<1024> logger(filename, cpp_logger::Verbosity::DEBUG_LVL);
+    zerg::Logger<1024> logger(filename, zerg::Verbosity::DEBUG_LVL);
 
-    LOG_TEST(logger, cpp_logger::Verbosity::DEBUG_LVL, "Test message");
+    LOG_TEST(logger, zerg::Verbosity::DEBUG_LVL, "Test message");
 
     logger.sync();
     logger.waitUntilEmpty();
@@ -23,10 +23,10 @@ TEST(LoggerTest, LogSingleMessage)
 TEST(LoggerTest, LogMultipleMessages)
 {
     const std::string filename = "test_log.log";
-    cpp_logger::Logger<1024> logger(filename, cpp_logger::Verbosity::DEBUG_LVL);
+    zerg::Logger<1024> logger(filename, zerg::Verbosity::DEBUG_LVL);
 
-    LOG_TEST(logger, cpp_logger::Verbosity::DEBUG_LVL, "First message");
-    LOG_TEST(logger, cpp_logger::Verbosity::DEBUG_LVL, "Second message");
+    LOG_TEST(logger, zerg::Verbosity::DEBUG_LVL, "First message");
+    LOG_TEST(logger, zerg::Verbosity::DEBUG_LVL, "Second message");
 
     logger.sync();
     logger.waitUntilEmpty();
@@ -41,10 +41,10 @@ TEST(LoggerTest, LogMultipleMessages)
 TEST(LoggerTest, RotateLogFile)
 {
     const std::string filename = "test_log.log";
-    cpp_logger::Logger<100> logger(
-        filename, cpp_logger::Verbosity::DEBUG_LVL); // small max file size to trigger rotation
+    zerg::Logger<100> logger(
+        filename, zerg::Verbosity::DEBUG_LVL); // small max file size to trigger rotation
 
-    LOG_TEST(logger, cpp_logger::Verbosity::DEBUG_LVL, "Message 1");
+    LOG_TEST(logger, zerg::Verbosity::DEBUG_LVL, "Message 1");
 
     logger.sync();
     logger.waitUntilEmpty();
@@ -56,12 +56,12 @@ TEST(LoggerTest, RotateLogFile)
 TEST(LoggerTest, LogWithDifferentVerbosityLevels)
 {
     const std::string filename = "test_log.log";
-    cpp_logger::Logger<1024> logger(filename, cpp_logger::Verbosity::WARN_LVL);
+    zerg::Logger<1024> logger(filename, zerg::Verbosity::WARN_LVL);
 
-    LOG_TEST(logger, cpp_logger::Verbosity::DEBUG_LVL, "Debug message");
-    LOG_TEST(logger, cpp_logger::Verbosity::INFO_LVL, "Info message");
-    LOG_TEST(logger, cpp_logger::Verbosity::WARN_LVL, "Warning message");
-    LOG_TEST(logger, cpp_logger::Verbosity::ERROR_LVL, "Error message");
+    LOG_TEST(logger, zerg::Verbosity::DEBUG_LVL, "Debug message");
+    LOG_TEST(logger, zerg::Verbosity::INFO_LVL, "Info message");
+    LOG_TEST(logger, zerg::Verbosity::WARN_LVL, "Warning message");
+    LOG_TEST(logger, zerg::Verbosity::ERROR_LVL, "Error message");
 
     logger.sync();
     logger.waitUntilEmpty();
@@ -77,13 +77,13 @@ TEST(LoggerTest, LogWithDifferentVerbosityLevels)
 TEST(LoggerTest, LogFormattedMessages)
 {
     const std::string filename = "test_log.log";
-    cpp_logger::Logger<1024> logger(filename, cpp_logger::Verbosity::DEBUG_LVL);
+    zerg::Logger<1024> logger(filename, zerg::Verbosity::DEBUG_LVL);
 
-    LOG_TEST(logger, cpp_logger::Verbosity::DEBUG_LVL, "Debug {:.1f} message", 1.0);
-    LOG_TEST(logger, cpp_logger::Verbosity::INFO_LVL, "Info {} message", 2);
-    LOG_TEST(logger, cpp_logger::Verbosity::WARN_LVL, "Warning {} message", "test");
-    LOG_TEST(logger, cpp_logger::Verbosity::ERROR_LVL, "Error {} message", 'E');
-    LOG_TEST(logger, cpp_logger::Verbosity::FATAL_LVL, "Fatal {} message with number {}", "fatal",
+    LOG_TEST(logger, zerg::Verbosity::DEBUG_LVL, "Debug {:.1f} message", 1.0);
+    LOG_TEST(logger, zerg::Verbosity::INFO_LVL, "Info {} message", 2);
+    LOG_TEST(logger, zerg::Verbosity::WARN_LVL, "Warning {} message", "test");
+    LOG_TEST(logger, zerg::Verbosity::ERROR_LVL, "Error {} message", 'E');
+    LOG_TEST(logger, zerg::Verbosity::FATAL_LVL, "Fatal {} message with number {}", "fatal",
              5);
 
     logger.sync();
@@ -100,9 +100,9 @@ TEST(LoggerTest, LogFormattedMessages)
 TEST(LoggerTest, SanitizeNonPrintableCharacters)
 {
     const std::string filename = "test_log.log";
-    cpp_logger::Logger<1024> logger(filename, cpp_logger::Verbosity::DEBUG_LVL);
+    zerg::Logger<1024> logger(filename, zerg::Verbosity::DEBUG_LVL);
 
-    LOG_TEST(logger, cpp_logger::Verbosity::DEBUG_LVL,
+    LOG_TEST(logger, zerg::Verbosity::DEBUG_LVL,
              "Test message with non-printable \x01\x02\x03 characters");
 
     logger.sync();

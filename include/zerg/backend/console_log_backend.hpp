@@ -4,7 +4,7 @@
 #include <unistd.h>         // ::write, STDOUT_FILENO
 #include "ilog_backend.hpp" // ILogBackend
 
-namespace cpp_logger
+namespace zerg
 {
 
 class ConsoleLogBackend : public ILogBackend
@@ -32,6 +32,6 @@ class ConsoleLogBackend : public ILogBackend
     }
 };
 
-} // namespace cpp_logger
+} // namespace zerg
 
 #endif // CONSOLE_LOG_BACKEND_HPP

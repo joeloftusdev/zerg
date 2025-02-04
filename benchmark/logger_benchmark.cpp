@@ -1,4 +1,4 @@
-#include "../include/cpp_logger/global_logger.hpp"
+#include "../include/zerg/global_logger.hpp"
 #include <benchmark/benchmark.h>
 #include <cerrno>
 #include <cstdio>
@@ -47,8 +47,8 @@ int getenv_int(const char *name)
 #define LOG_BENCH(NAME, X, MSGSIZE)                                                                \
     void NAME(benchmark::State &state)                                                             \
     {                                                                                              \
-        cpp_logger::setLogFilePath("/dev/null");                                                   \
-        auto logger = cpp_logger::getGlobalLogger();                                               \
+        zerg::setLogFilePath("/dev/null");                                                   \
+        auto logger = zerg::getGlobalLogger();                                               \
                                                                                                    \
         if (const int cpu = getenv_int("PRODUCER_CPU"); cpu != -1)                                 \
             set_thread_attrs(::pthread_self(), cpu);                                               \
@@ -75,21 +75,21 @@ int getenv_int(const char *name)
 const std::string s{"Hello"};
 
 LOG_BENCH(logger_benchmark,
-          logger->log(cpp_logger::Verbosity::INFO_LVL, __FILE__, __LINE__, "Test"), 8)
+          logger->log(zerg::Verbosity::INFO_LVL, __FILE__, __LINE__, "Test"), 8)
 LOG_BENCH(logger_benchmark_int,
-          logger->log(cpp_logger::Verbosity::INFO_LVL, __FILE__, __LINE__, "Test {}", 42), 16)
+          logger->log(zerg::Verbosity::INFO_LVL, __FILE__, __LINE__, "Test {}", 42), 16)
 LOG_BENCH(logger_benchmark_long,
-          logger->log(cpp_logger::Verbosity::INFO_LVL, __FILE__, __LINE__, "Test {}", 42L), 16)
+          logger->log(zerg::Verbosity::INFO_LVL, __FILE__, __LINE__, "Test {}", 42L), 16)
 LOG_BENCH(logger_benchmark_double,
-          logger->log(cpp_logger::Verbosity::INFO_LVL, __FILE__, __LINE__, "Test {}", 42.0), 16)
+          logger->log(zerg::Verbosity::INFO_LVL, __FILE__, __LINE__, "Test {}", 42.0), 16)
 LOG_BENCH(logger_benchmark_c_str,
-          logger->log(cpp_logger::Verbosity::INFO_LVL, __FILE__, __LINE__, "Test {}", "Hello"), 32)
+          logger->log(zerg::Verbosity::INFO_LVL, __FILE__, __LINE__, "Test {}", "Hello"), 32)
 LOG_BENCH(logger_benchmark_str_view,
-          logger->log(cpp_logger::Verbosity::INFO_LVL, __FILE__, __LINE__, "Test {}",
+          logger->log(zerg::Verbosity::INFO_LVL, __FILE__, __LINE__, "Test {}",
                       std::string_view{"Hello"}),
           32)
 LOG_BENCH(logger_benchmark_str,
-          logger->log(cpp_logger::Verbosity::INFO_LVL, __FILE__, __LINE__, "Test {}", s), 32)
+          logger->log(zerg::Verbosity::INFO_LVL, __FILE__, __LINE__, "Test {}", s), 32)
 
 // The above code defines several benchmark tests using the LOG_BENCH macro.
 // Each benchmark logs a message with different types of arguments.

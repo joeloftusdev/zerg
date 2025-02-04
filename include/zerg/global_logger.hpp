@@ -31,7 +31,7 @@
 #include <sstream>       // std::istringstream
 #include <unordered_map> // std::unordered_map
 
-namespace cpp_logger
+namespace zerg
 {
 
 inline std::string &getLogFileName()
@@ -154,18 +154,18 @@ constexpr void logWithFile(const Verbosity level, const std::string &loggerFile,
         ->log(level, file, line, format.c_str(), std::forward<Args>(args)...);
 }
 
-} // namespace cpp_logger
+} // namespace zerg
 
 // macros are used here to automatically capture __FILE__ and __LINE__ at the call site
 // this ensures that the correct file name and line number are logged
 #define cpp_log(level, format, ...)                                                                \
-    cpp_logger::log(level, __FILE__, __LINE__, format, ##__VA_ARGS__)
+    zerg::log(level, __FILE__, __LINE__, format, ##__VA_ARGS__)
 
 #define cpp_log_with_file(level, file, format, ...)                                                \
-    cpp_logger::logWithFile(level, file, __FILE__, __LINE__, format, ##__VA_ARGS__)
+    zerg::logWithFile(level, file, __FILE__, __LINE__, format, ##__VA_ARGS__)
 
 #define cpp_log_console(level, format, ...)                                                        \
-    ::cpp_logger::getGlobalConsoleLogger()->log(level, __FILE__, __LINE__, format, ##__VA_ARGS__)
+    ::zerg::getGlobalConsoleLogger()->log(level, __FILE__, __LINE__, format, ##__VA_ARGS__)
 
 // console logger needs to move to own class, this should be renamed file_logger and shared methods
 // should be abstracted into a base class

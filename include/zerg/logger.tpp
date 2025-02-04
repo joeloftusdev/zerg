@@ -25,7 +25,7 @@
 #include "logger.hpp" 
 
 
-namespace cpp_logger
+namespace zerg
 {
 
 template <std::size_t MaxFileSize, std::size_t BufferSize>
@@ -128,7 +128,7 @@ void Logger<MaxFileSize, BufferSize>::sync()
 template <std::size_t MaxFileSize, std::size_t BufferSize>
 void Logger<MaxFileSize, BufferSize>::waitUntilEmpty()
 {
-    ::cpp_logger::waitUntilEmpty<LogEntry>(_log_buffer);
+    ::zerg::waitUntilEmpty<LogEntry>(_log_buffer);
 }
 
 
@@ -253,7 +253,7 @@ void Logger<MaxFileSize, BufferSize>::sanitizeString(fmt::memory_buffer &buffer)
         buffer.resize(it - buffer.begin());
 
     }
-}; //namespace cpp_logger
+}; //namespace zerg
 
 
 #endif // LOGGER_TPP

@@ -25,7 +25,7 @@
 #include "ilog_backend.hpp" // ILogBackend
 #include "../constants.hpp" // DEFAULT_BUFFER_SIZE
 
-namespace cpp_logger
+namespace zerg
 {
 class FileLogBackend : public ILogBackend
 {
@@ -48,6 +48,6 @@ class FileLogBackend : public ILogBackend
   private:
     std::ofstream _ofs;
 };
-} // namespace cpp_logger
+} // namespace zerg
 
 #endif // FILE_LOG_BACKEND_HPP

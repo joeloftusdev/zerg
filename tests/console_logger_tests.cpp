@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 #include <thread>
 #include <vector>
-#include "cpp_logger/global_logger.hpp" // for cpp_log_console, getGlobalConsoleLogger
+#include "zerg/global_logger.hpp" // for cpp_log_console, getGlobalConsoleLogger
 #include <sstream>
 #include <string>
 
@@ -9,7 +9,7 @@ void logConsoleMessages(int thread_id, int message_count)
 {
     for (int i = 0; i < message_count; ++i)
     {
-        cpp_log_console(cpp_logger::Verbosity::INFO_LVL, "Thread {}, message {}", thread_id, i);
+        cpp_log_console(zerg::Verbosity::INFO_LVL, "Thread {}, message {}", thread_id, i);
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
 }
@@ -18,10 +18,10 @@ TEST(ConsoleLoggerTest, BasicConsoleLog)
 {
     testing::internal::CaptureStdout();
 
-    cpp_log_console(cpp_logger::Verbosity::INFO_LVL, "This is a console log test");
+    cpp_log_console(zerg::Verbosity::INFO_LVL, "This is a console log test");
 
-    cpp_logger::getGlobalConsoleLogger()->sync();
-    cpp_logger::getGlobalConsoleLogger()->waitUntilEmpty();
+    zerg::getGlobalConsoleLogger()->sync();
+    zerg::getGlobalConsoleLogger()->waitUntilEmpty();
     std::string output = testing::internal::GetCapturedStdout();
 
     EXPECT_NE(output.find("This is a console log test"), std::string::npos)
@@ -47,8 +47,8 @@ TEST(ConsoleLoggerTest, ThreadSafety)
         t.join();
     }
 
-    cpp_logger::getGlobalConsoleLogger()->sync();
-    cpp_logger::getGlobalConsoleLogger()->waitUntilEmpty();
+    zerg::getGlobalConsoleLogger()->sync();
+    zerg::getGlobalConsoleLogger()->waitUntilEmpty();
 
     std::string output = testing::internal::GetCapturedStdout();
 
@@ -71,14 +71,14 @@ TEST(ConsoleLoggerTest, VerbosityLevels)
     testing::internal::CaptureStdout();
 
     // Test all verbosity levels
-    cpp_log_console(cpp_logger::Verbosity::DEBUG_LVL, "Debug message: {}", 1);
-    cpp_log_console(cpp_logger::Verbosity::INFO_LVL, "Info message: {}", "test");
-    cpp_log_console(cpp_logger::Verbosity::WARN_LVL, "Warning message: {:.2f}", 3.141);
-    cpp_log_console(cpp_logger::Verbosity::ERROR_LVL, "Error message: {}", true);
-    cpp_log_console(cpp_logger::Verbosity::FATAL_LVL, "Fatal message: {}", 'F');
+    cpp_log_console(zerg::Verbosity::DEBUG_LVL, "Debug message: {}", 1);
+    cpp_log_console(zerg::Verbosity::INFO_LVL, "Info message: {}", "test");
+    cpp_log_console(zerg::Verbosity::WARN_LVL, "Warning message: {:.2f}", 3.141);
+    cpp_log_console(zerg::Verbosity::ERROR_LVL, "Error message: {}", true);
+    cpp_log_console(zerg::Verbosity::FATAL_LVL, "Fatal message: {}", 'F');
 
-    cpp_logger::getGlobalConsoleLogger()->sync();
-    cpp_logger::getGlobalConsoleLogger()->waitUntilEmpty();
+    zerg::getGlobalConsoleLogger()->sync();
+    zerg::getGlobalConsoleLogger()->waitUntilEmpty();
 
     std::string output = testing::internal::GetCapturedStdout();
     

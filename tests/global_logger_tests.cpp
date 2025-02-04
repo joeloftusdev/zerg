@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include "../include/cpp_logger/global_logger.hpp"
+#include "../include/zerg/global_logger.hpp"
 #include "test_utils.hpp"
 #include <string>
 #include <thread>
@@ -11,7 +11,7 @@ void logMessages(const std::string &filename, int thread_id)
 {
     for (int i = 0; i < 100; ++i)
     {
-        cpp_log_with_file(cpp_logger::Verbosity::INFO_LVL, filename, "Thread {}, message {}",
+        cpp_log_with_file(zerg::Verbosity::INFO_LVL, filename, "Thread {}, message {}",
                           thread_id, i);
         std::this_thread::sleep_for(std::chrono::milliseconds(10)); // todo update this
     }
@@ -29,17 +29,17 @@ TEST(GlobalLoggerTest, LogWithDifferentFiles)
         ofs2.close();
     }
 
-    cpp_logger::resetGlobalLogger(default_filename);
-    cpp_logger::resetGlobalLogger(custom_filename);
+    zerg::resetGlobalLogger(default_filename);
+    zerg::resetGlobalLogger(custom_filename);
 
-    cpp_log(cpp_logger::Verbosity::INFO_LVL, "Test message with default file");
-    cpp_log_with_file(cpp_logger::Verbosity::DEBUG_LVL, custom_filename,
+    cpp_log(zerg::Verbosity::INFO_LVL, "Test message with default file");
+    cpp_log_with_file(zerg::Verbosity::DEBUG_LVL, custom_filename,
                       "Test message with custom file");
 
-    cpp_logger::getGlobalLogger(default_filename)->sync();
-    cpp_logger::getGlobalLogger(default_filename)->waitUntilEmpty();
-    cpp_logger::getGlobalLogger(custom_filename)->sync();
-    cpp_logger::getGlobalLogger(custom_filename)->waitUntilEmpty();
+    zerg::getGlobalLogger(default_filename)->sync();
+    zerg::getGlobalLogger(default_filename)->waitUntilEmpty();
+    zerg::getGlobalLogger(custom_filename)->sync();
+    zerg::getGlobalLogger(custom_filename)->waitUntilEmpty();
 
     std::string log_content_default = readFile(default_filename);
     std::string log_content_custom = readFile(custom_filename);
@@ -65,13 +65,13 @@ TEST(GlobalLoggerTest, LogWithDefaultFile)
     }
 
     // Reset global logger instance so a new one is created for the truncated file
-    cpp_logger::resetGlobalLogger(default_filename);
+    zerg::resetGlobalLogger(default_filename);
 
     // Log after reset so messages go to a fresh file stream.
-    cpp_log(cpp_logger::Verbosity::INFO_LVL, "Test message with default file");
+    cpp_log(zerg::Verbosity::INFO_LVL, "Test message with default file");
 
-    cpp_logger::getGlobalLogger(default_filename)->sync();
-    cpp_logger::getGlobalLogger(default_filename)->waitUntilEmpty();
+    zerg::getGlobalLogger(default_filename)->sync();
+    zerg::getGlobalLogger(default_filename)->waitUntilEmpty();
 
     std::string log_content = readFile(default_filename);
     EXPECT_NE(log_content.find("Test message with default file"), std::string::npos);
@@ -87,10 +87,10 @@ TEST(GlobalLoggerTest, LogWithCustomFile)
         ofs.close();
     }
 
-    cpp_log_with_file(cpp_logger::Verbosity::INFO_LVL, custom_filename,
+    cpp_log_with_file(zerg::Verbosity::INFO_LVL, custom_filename,
                       "Test message with custom file");
-    cpp_logger::getGlobalLogger(custom_filename)->sync();
-    cpp_logger::getGlobalLogger(custom_filename)->waitUntilEmpty();
+    zerg::getGlobalLogger(custom_filename)->sync();
+    zerg::getGlobalLogger(custom_filename)->waitUntilEmpty();
 
     std::string log_content = readFile(custom_filename);
     EXPECT_NE(log_content.find("Test message with custom file"), std::string::npos);

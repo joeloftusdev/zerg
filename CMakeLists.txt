@@ -24,11 +24,11 @@ include_directories(external/fmt/include)
 
 add_subdirectory(external/fmt)
 
-add_library(cpp_logger STATIC src/logger.cpp)
-target_link_libraries(cpp_logger fmt::fmt)
+add_library(zerg STATIC src/logger.cpp)
+target_link_libraries(zerg fmt::fmt)
 
 add_executable(main main.cpp)
-target_link_libraries(main cpp_logger fmt::fmt)
+target_link_libraries(main zerg fmt::fmt)
 
 
 add_custom_target(assembly
@@ -84,7 +84,7 @@ if(CLANG_FORMAT)
     )
 endif()
 
-include(cpplogger_gtests)
+include(zerg_gtests)
 
 if(BUILD_BENCHMARKS)
     add_definitions(-DBENCHMARK_MODE)

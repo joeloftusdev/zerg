@@ -42,7 +42,7 @@
 #include <array>              // std::array
 #include "macros.hpp"         // PREFETCH, likely, unlikely
 
-namespace cpp_logger
+namespace zerg
 {
 
 /*
@@ -109,7 +109,7 @@ template <std::size_t MaxFileSize, std::size_t BufferSize = MAX_FILE_SIZE> class
     void sanitizeString(fmt::memory_buffer &buffer);
 };
 
-} // namespace cpp_logger
+} // namespace zerg
 
 #include "logger.tpp"
 #endif // LOGGER_HPP

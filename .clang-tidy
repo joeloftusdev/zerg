@@ -24,7 +24,7 @@ clang-analyzer-*,
 
 
 WarningsAsErrors: ''
-HeaderFilterRegex: '*cpp_logger/[^f].*'
+HeaderFilterRegex: '*zerg/[^f].*'
 FormatStyle:     none
 
 CheckOptions:    
