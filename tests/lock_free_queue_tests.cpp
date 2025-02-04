@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include "../include/zerg/lock_free_queue.hpp"
+#include "../include/zerg/mpmc_queue.hpp"
 #include <thread>
 #include <vector>
 

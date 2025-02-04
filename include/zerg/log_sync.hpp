@@ -26,7 +26,7 @@
 #include <thread>
 #include <condition_variable>
 #include <functional>
-#include "lock_free_queue.hpp"
+#include "mpmc_queue.hpp"
 #include "backend/ilog_backend.hpp"
 
 namespace zerg

@@ -18,8 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#ifndef LOCK_FREE_QUEUE_HPP // MPMC lock-free queue
-#define LOCK_FREE_QUEUE_HPP
+#ifndef MPMC_QUEUE_HPP // MPMC lock-free, wait free queue
+#define MPMC_QUEUE_HPP
 
 #include <atomic>        // std::atomic, std::memory_order_*
 #include <vector>        // std::vector
@@ -187,6 +187,6 @@ template <typename T> class LockFreeQueue
     std::vector<Slot> _slots; // slots for storing items
 };
 
-#endif // LOCK_FREE_QUEUE_HPP
+#endif // MPMC_QUEUE_HPP 
 
 // MPMC lock-free queue

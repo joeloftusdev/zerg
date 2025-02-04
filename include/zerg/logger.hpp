@@ -22,7 +22,7 @@
 #define LOGGER_HPP
 
 #include "constants.hpp"                // MAX_FILE_SIZE, DEFAULT_BUFFER_SIZE
-#include "lock_free_queue.hpp"          // LockFreeQueue
+#include "mpmc_queue.hpp"               // LockFreeQueue
 #include "backend/file_log_backend.hpp" // FileLogBackend
 #include "verbosity.hpp"                // Verbosity
 #include "log_sync.hpp"                 // syncLogs, waitUntilEmpty
